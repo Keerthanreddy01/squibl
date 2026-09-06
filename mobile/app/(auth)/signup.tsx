@@ -8,9 +8,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
 import { supabase } from '../../lib/supabase';
 import { PressableScale } from '../../components/PressableScale';
 
@@ -18,6 +20,13 @@ const RED = '#E50914';
 
 export default function SignupScreen() {
   const router = useRouter();
+
+  const [fontsLoaded] = useFonts({
+    'Anton-Regular': require('../../assets/fonts/Anton-Regular.ttf'),
+    'ArchivoBlack-Regular': require('../../assets/fonts/ArchivoBlack-Regular.ttf'),
+    'Geist-UltraBlack': require('../../assets/fonts/Geist-UltraBlack.ttf'),
+  });
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isEmailFocused, setIsEmailFocused] = useState(false);
@@ -62,6 +71,8 @@ export default function SignupScreen() {
     }
   }, [email, password, router]);
 
+  const fontStyle = fontsLoaded ? styles.heroFontArchivo : styles.heroDisplayLine;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -73,15 +84,34 @@ export default function SignupScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Join Squibl</Text>
-            <Text style={styles.subtitle}>
-              Create your builder account and start collaborating
+          {/* Top Header Bar — Circular Back Button + squibl™ Wordmark */}
+          <View style={styles.headerBar}>
+            <PressableScale
+              style={styles.backButton}
+              onPress={() => router.back()}
+              activeScale={0.92}
+              accessibilityLabel="Go back"
+            >
+              <Text style={styles.backArrow}>←</Text>
+            </PressableScale>
+
+            <View style={styles.brandRow}>
+              <Text style={styles.brandWordmark}>squibl</Text>
+              <Text style={styles.brandTrademark}>™</Text>
+            </View>
+          </View>
+
+          {/* Hero Section — Bold Display Typography matching login */}
+          <View style={styles.heroSection}>
+            <Text style={fontStyle}>JOIN</Text>
+            <Text style={fontStyle}>THE</Text>
+            <Text style={fontStyle}>NETWORK!</Text>
+            <Text style={styles.heroSubtitle}>
+              Create your builder account and start collaborating with developers worldwide.
             </Text>
           </View>
 
-          {/* Message / Error Notification */}
+          {/* Message / Error Box */}
           {message && (
             <View
               style={[
@@ -100,17 +130,18 @@ export default function SignupScreen() {
             </View>
           )}
 
-          {/* Form Fields */}
+          {/* Form Container — Sizing, Corner Radius, and Background exact match to Login */}
           <View style={styles.formContainer}>
+            {/* Email Input Card */}
             <View
               style={[
-                styles.inputWrapper,
-                isEmailFocused && styles.inputWrapperFocused,
+                styles.inputCard,
+                isEmailFocused && styles.inputCardFocused,
               ]}
             >
-              <Text style={styles.inputLabel}>Email address</Text>
+              <Text style={styles.cardLabel}>Email address</Text>
               <TextInput
-                style={styles.input}
+                style={styles.textInput}
                 placeholder="name@example.com"
                 placeholderTextColor="#A1A1AA"
                 autoCapitalize="none"
@@ -123,15 +154,16 @@ export default function SignupScreen() {
               />
             </View>
 
+            {/* Password Input Card */}
             <View
               style={[
-                styles.inputWrapper,
-                isPasswordFocused && styles.inputWrapperFocused,
+                styles.inputCard,
+                isPasswordFocused && styles.inputCardFocused,
               ]}
             >
-              <Text style={styles.inputLabel}>Password</Text>
+              <Text style={styles.cardLabel}>Password</Text>
               <TextInput
-                style={styles.input}
+                style={styles.textInput}
                 placeholder="At least 6 characters"
                 placeholderTextColor="#A1A1AA"
                 secureTextEntry
@@ -143,29 +175,37 @@ export default function SignupScreen() {
               />
             </View>
 
-            {/* Primary Action Button */}
+            {/* Solid Bright Red Full-width Pill Button with Glassmorphism Specular Edge */}
             <PressableScale
-              style={styles.button}
+              style={styles.primaryButton}
               onPress={handleSignup}
               disabled={loading}
-              activeScale={0.97}
+              activeScale={0.96}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
+                <Text style={styles.primaryButtonText}>Create Account</Text>
               )}
             </PressableScale>
+
+            {/* Terms of Use / Privacy Policy Disclaimer */}
+            <Text style={styles.disclaimerText}>
+              By signing up, you agree to our{' '}
+              <Text style={styles.disclaimerHighlight}>Terms and Use</Text> and confirm that you read our{' '}
+              <Text style={styles.disclaimerHighlight}>Privacy Policy</Text>
+            </Text>
           </View>
 
-          {/* Footer */}
+          {/* Footer Sign In Link with instant tactile touch feedback */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <Link href="/(auth)/login" asChild>
-              <PressableScale activeScale={0.94}>
-                <Text style={styles.linkText}>Sign In</Text>
-              </PressableScale>
-            </Link>
+            <PressableScale
+              activeScale={0.93}
+              onPress={() => router.push('/(auth)/login')}
+            >
+              <Text style={styles.signInLink}>Sign In</Text>
+            </PressableScale>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -183,83 +223,88 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 28,
+    paddingHorizontal: 22,
+    paddingTop: 6,
+    paddingBottom: 24,
     justifyContent: 'space-between',
   },
-  header: {
-    marginBottom: 32,
+  headerBar: {
+    paddingTop: 8,
+    paddingBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  title: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: '#000000',
-    letterSpacing: -1,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#71717A',
-    fontWeight: '500',
-    lineHeight: 22,
-  },
-  formContainer: {
-    width: '100%',
-    marginBottom: 24,
-  },
-  inputWrapper: {
-    backgroundColor: '#F4F4F5',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 12,
-    marginBottom: 16,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  inputWrapperFocused: {
-    borderColor: '#18181B',
-    backgroundColor: '#FFFFFF',
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#71717A',
-    marginBottom: 4,
-  },
-  input: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000000',
-    padding: 0,
-    margin: 0,
-    height: 26,
-  },
-  button: {
-    backgroundColor: RED,
-    borderRadius: 9999,
-    height: 56,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(244, 244, 245, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
-    shadowColor: RED,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 5,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
+  backArrow: {
+    fontSize: 22,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    color: '#000000',
+    marginTop: -2,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  brandWordmark: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#000000',
+    letterSpacing: -1.5,
+  },
+  brandTrademark: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#71717A',
+    marginLeft: 2,
+    marginTop: 2,
+  },
+  heroSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  heroDisplayLine: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#000000',
+    lineHeight: 50,
+    letterSpacing: -1.5,
+    textTransform: 'uppercase',
+  },
+  heroFontArchivo: {
+    fontFamily: 'ArchivoBlack-Regular',
+    fontSize: 46,
+    lineHeight: 48,
+    letterSpacing: -1,
+    color: '#000000',
+    textTransform: 'uppercase',
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#71717A',
+    lineHeight: 20,
+    marginTop: 8,
   },
   messageBox: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 14,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   errorBox: {
     backgroundColor: '#FEF2F2',
@@ -282,18 +327,93 @@ const styles = StyleSheet.create({
   successText: {
     color: '#000000',
   },
+  formContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  inputCard: {
+    backgroundColor: 'rgba(238, 240, 243, 0.88)',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    height: 72,
+    justifyContent: 'center',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    marginBottom: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  inputCardFocused: {
+    borderColor: '#18181B',
+    backgroundColor: '#FFFFFF',
+    shadowOpacity: 0.08,
+  },
+  cardLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#71717A',
+    marginBottom: 4,
+  },
+  textInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000000',
+    padding: 0,
+    margin: 0,
+    height: 28,
+  },
+  primaryButton: {
+    backgroundColor: RED,
+    borderRadius: 9999,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
+    shadowColor: RED,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.42,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  disclaimerText: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 14,
+    paddingHorizontal: 12,
+  },
+  disclaimerHighlight: {
+    color: '#4B5563',
+    fontWeight: '600',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   footerText: {
     color: '#52525B',
     fontSize: 14,
     fontWeight: '500',
   },
-  linkText: {
+  signInLink: {
     color: RED,
     fontSize: 14,
     fontWeight: '800',

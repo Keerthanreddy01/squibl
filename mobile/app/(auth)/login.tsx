@@ -17,6 +17,7 @@ import { useFonts } from 'expo-font';
 import { supabase } from '../../lib/supabase';
 import { COUNTRIES, Country } from '../../lib/countries';
 import { CountryPickerView } from '../../components/CountryPickerView';
+import { PressableScale } from '../../components/PressableScale';
 
 const RED = '#E50914';
 
@@ -116,13 +117,13 @@ export default function LoginScreen() {
             </View>
 
             {/* Subtle Dev Quick Login Button */}
-            <TouchableOpacity
+            <PressableScale
               style={styles.devQuickLoginBtn}
               onPress={handleQuickLoginFill}
-              activeOpacity={0.7}
+              activeScale={0.94}
             >
               <Text style={styles.devQuickLoginText}>⚡ Quick Login</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           {/* Hero Section — Headline with 3D logo nestled in "BIGGEST" */}
@@ -165,11 +166,11 @@ export default function LoginScreen() {
           {/* Phone Login Section — Country Selector + Phone Number Row */}
           <View style={styles.formContainer}>
             <View style={styles.phoneInputRow}>
-              {/* Country Selector Card — Fixed 120px width so it never collapses */}
-              <TouchableOpacity
+              {/* Country Selector Card — Fixed 122px width with glassmorphic depth */}
+              <PressableScale
                 style={styles.countryCard}
                 onPress={() => setIsCountryPickerOpen(true)}
-                activeOpacity={0.75}
+                activeScale={0.97}
               >
                 <Text style={styles.cardLabel}>Country</Text>
                 <View style={styles.countrySelector}>
@@ -177,7 +178,7 @@ export default function LoginScreen() {
                   <Text style={styles.countryCodeText}>{selectedCountry.callingCode}</Text>
                   <Text style={styles.chevronIcon}>⌵</Text>
                 </View>
-              </TouchableOpacity>
+              </PressableScale>
 
               {/* Phone Number Input Card — Fills remaining row width */}
               <View
@@ -204,19 +205,19 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* Solid Bright Red Full-width Pill "Continue" Button */}
-            <TouchableOpacity
+            {/* Solid Bright Red Full-width Pill "Continue" Button with Glassmorphism Specular Edge */}
+            <PressableScale
               style={styles.continueButton}
               onPress={handleLogin}
               disabled={loading}
-              activeOpacity={0.88}
+              activeScale={0.96}
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <Text style={styles.continueButtonText}>Continue</Text>
               )}
-            </TouchableOpacity>
+            </PressableScale>
 
             {/* Terms of Use / Privacy Policy Disclaimer matching reference */}
             <Text style={styles.disclaimerText}>
@@ -226,14 +227,15 @@ export default function LoginScreen() {
             </Text>
           </View>
 
-          {/* Sign Up Link */}
+          {/* Sign Up Link with tactile spring responsiveness */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
-            <Link href="/(auth)/signup" asChild>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Text style={styles.signupLink}>Sign up</Text>
-              </TouchableOpacity>
-            </Link>
+            <PressableScale
+              activeScale={0.93}
+              onPress={() => router.push('/(auth)/signup')}
+            >
+              <Text style={styles.signupLink}>Sign up</Text>
+            </PressableScale>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -265,12 +267,16 @@ const styles = StyleSheet.create({
   },
   devQuickLoginBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E4E4E7',
-    backgroundColor: '#FAFAFA',
-    borderStyle: 'dashed',
+    paddingVertical: 7,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(244, 244, 245, 0.9)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   devQuickLoginText: {
     fontSize: 11,
@@ -373,29 +379,42 @@ const styles = StyleSheet.create({
     width: 122,
     minWidth: 122,
     flexShrink: 0,
-    backgroundColor: '#ECEEF0',
+    backgroundColor: 'rgba(238, 240, 243, 0.88)',
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 12,
     height: 72,
     justifyContent: 'center',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   phoneCard: {
     flex: 1,
-    backgroundColor: '#ECEEF0',
+    backgroundColor: 'rgba(238, 240, 243, 0.88)',
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 12,
     height: 72,
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   phoneCardFocused: {
     borderColor: '#18181B',
-    backgroundColor: '#F4F4F5',
+    backgroundColor: '#FFFFFF',
+    shadowOpacity: 0.08,
   },
   cardLabel: {
     fontSize: 12,
@@ -438,11 +457,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
     shadowColor: RED,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.42,
+    shadowRadius: 18,
+    elevation: 8,
   },
   continueButtonText: {
     color: '#FFFFFF',
