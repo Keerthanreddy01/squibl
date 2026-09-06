@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "mobile",
+    "slug": "mobile",
+    "scheme": "squibl",
+    "plugins": ["expo-router"],
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/squibl-logo.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/squibl-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/squibl-logo.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
