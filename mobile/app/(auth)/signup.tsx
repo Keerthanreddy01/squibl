@@ -147,6 +147,7 @@ export default function SignupScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 autoCorrect={false}
+                underlineColorAndroid="transparent"
                 value={email}
                 onChangeText={setEmail}
                 onFocus={() => setIsEmailFocused(true)}
@@ -168,6 +169,7 @@ export default function SignupScreen() {
                 placeholderTextColor="#A1A1AA"
                 secureTextEntry
                 autoCapitalize="none"
+                underlineColorAndroid="transparent"
                 value={password}
                 onChangeText={setPassword}
                 onFocus={() => setIsPasswordFocused(true)}
@@ -236,19 +238,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(244, 244, 245, 0.9)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F4F4F5',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
   },
   backArrow: {
     fontSize: 22,
@@ -332,26 +329,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputCard: {
-    backgroundColor: 'rgba(238, 240, 243, 0.88)',
+    backgroundColor: '#ECEEF0',
     borderRadius: 18,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 12,
     height: 72,
     justifyContent: 'center',
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
     marginBottom: 14,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
   },
   inputCardFocused: {
     borderColor: '#18181B',
     backgroundColor: '#FFFFFF',
-    shadowOpacity: 0.08,
   },
   cardLabel: {
     fontSize: 12,
@@ -363,6 +354,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#000000',
+    backgroundColor: 'transparent',
     padding: 0,
     margin: 0,
     height: 28,
@@ -373,14 +365,12 @@ const styles = StyleSheet.create({
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 6,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.38)',
+    marginTop: 8,
     shadowColor: RED,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.42,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 4,
   },
   primaryButtonText: {
     color: '#FFFFFF',
