@@ -39,6 +39,7 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/settings.json
+.claude/
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
