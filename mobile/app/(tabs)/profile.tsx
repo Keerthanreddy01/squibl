@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
+import { PressableScale } from '../../components/PressableScale';
+
+const RED = '#E50914';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -29,131 +33,190 @@ export default function ProfileScreen() {
     };
   }, []);
 
-  async function handleSignOut() {
+  const handleSignOut = useCallback(async () => {
     await supabase.auth.signOut();
-  }
+    router.replace('/(auth)/login');
+  }, [router]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Builder Profile</Text>
-
-      {user ? (
-        <View style={styles.card}>
-          <Text style={styles.badge}>AUTHENTICATED</Text>
-          <Text style={styles.label}>Email:</Text>
-          <Text style={styles.value}>{user.email}</Text>
-
-          <Text style={styles.label}>User ID:</Text>
-          <Text style={styles.valueSmall}>{user.id}</Text>
-
-          <Text style={styles.label}>Session Stored:</Text>
-          <Text style={styles.value}>AsyncStorage (Persistent)</Text>
-
-          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-            <Text style={styles.buttonText}>Sign Out</Text>
-          </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Builder Profile</Text>
+          <Text style={styles.subtitle}>Account credentials & workspace status</Text>
         </View>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.badgeGuest}>GUEST</Text>
-          <Text style={styles.subtitle}>No active session found</Text>
-          <TouchableOpacity
-            style={styles.signInButton}
-            onPress={() => router.push('/(auth)/login')}
-          >
-            <Text style={styles.buttonText}>Sign In / Sign Up</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+
+        {user ? (
+          <View style={styles.card}>
+            <View style={styles.badgeRow}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>AUTHENTICATED BUILDER</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoGroup}>
+              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.value}>{user.email}</Text>
+            </View>
+
+            <View style={styles.infoGroup}>
+              <Text style={styles.label}>User UUID</Text>
+              <Text style={styles.valueSmall}>{user.id}</Text>
+            </View>
+
+            <View style={styles.infoGroup}>
+              <Text style={styles.label}>Session Persistence</Text>
+              <Text style={styles.value}>AsyncStorage (Secure Store)</Text>
+            </View>
+
+            <PressableScale
+              style={styles.signOutButton}
+              onPress={handleSignOut}
+              activeScale={0.96}
+            >
+              <Text style={styles.signOutButtonText}>Sign Out</Text>
+            </PressableScale>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <View style={styles.badgeRow}>
+              <View style={styles.badgeGuest}>
+                <Text style={styles.badgeGuestText}>GUEST SESSION</Text>
+              </View>
+            </View>
+            <Text style={styles.guestDesc}>No active user session found.</Text>
+            <PressableScale
+              style={styles.signInButton}
+              onPress={() => router.push('/(auth)/login')}
+              activeScale={0.96}
+            >
+              <Text style={styles.signInButtonText}>Sign In / Sign Up</Text>
+            </PressableScale>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#09090b',
-    padding: 20,
+    backgroundColor: '#FFFFFF',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
+  scrollContent: {
+    padding: 22,
+  },
+  header: {
     marginBottom: 24,
   },
-  card: {
-    width: '100%',
-    backgroundColor: '#18181b',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#27272a',
-    alignItems: 'center',
-  },
-  badge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.2)',
-    color: '#22c55e',
-    fontSize: 12,
-    fontWeight: 'bold',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginBottom: 16,
-  },
-  badgeGuest: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    color: '#ef4444',
-    fontSize: 12,
-    fontWeight: 'bold',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginBottom: 16,
+  title: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#000000',
+    letterSpacing: -0.8,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#a1a1aa',
-    marginBottom: 20,
+    color: '#71717A',
+    fontWeight: '500',
+  },
+  card: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  badge: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  badgeText: {
+    color: '#059669',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  badgeGuest: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  badgeGuestText: {
+    color: '#DC2626',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  infoGroup: {
+    marginBottom: 16,
   },
   label: {
     fontSize: 12,
-    color: '#71717a',
-    marginTop: 8,
-    textTransform: 'uppercase',
+    fontWeight: '600',
+    color: '#71717A',
+    marginBottom: 4,
   },
   value: {
     fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-    marginTop: 2,
+    color: '#18181B',
+    fontWeight: '700',
   },
   valueSmall: {
-    fontSize: 12,
-    color: '#a1a1aa',
-    marginTop: 2,
+    fontSize: 13,
+    color: '#52525B',
     fontFamily: 'monospace',
   },
-  signInButton: {
-    backgroundColor: '#ec4899',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 12,
+  guestDesc: {
+    fontSize: 14,
+    color: '#71717A',
+    marginBottom: 20,
   },
-  signOutButton: {
-    backgroundColor: '#27272a',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 20,
-    width: '100%',
+  signInButton: {
+    backgroundColor: RED,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
+  signInButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  signOutButton: {
+    backgroundColor: '#F4F4F5',
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  signOutButtonText: {
+    color: '#18181B',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

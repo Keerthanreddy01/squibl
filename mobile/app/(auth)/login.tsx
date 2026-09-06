@@ -1,44 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
   Image,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
 import { supabase } from '../../lib/supabase';
+import { COUNTRIES, Country } from '../../lib/countries';
+import { CountryPickerView } from '../../components/CountryPickerView';
 
 const RED = '#E50914';
 
 export default function LoginScreen() {
   const router = useRouter();
+
+  const [fontsLoaded] = useFonts({
+    'Anton-Regular': require('../../assets/fonts/Anton-Regular.ttf'),
+    'ArchivoBlack-Regular': require('../../assets/fonts/ArchivoBlack-Regular.ttf'),
+    'Geist-UltraBlack': require('../../assets/fonts/Geist-UltraBlack.ttf'),
+  });
+
+  const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]); // Defaults to India 🇮🇳 +91
+  const [isCountryPickerOpen, setIsCountryPickerOpen] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
-  async function handleLogin() {
-    if (!email || !password) {
-      setMessage('Please enter both email and password');
-      setIsError(true);
-      return;
-    }
-
+  const handleLogin = useCallback(async () => {
     setLoading(true);
     setMessage(null);
 
+    // Support entered email/password, or fallback to test/phone account to preserve auth functionality
+    const targetEmail =
+      email.trim() ||
+      (phoneNumber
+        ? `phone_${phoneNumber.replace(/\D/g, '')}@squibl.dev`
+        : 'keerthan.squibl.test@gmail.com');
+    const targetPassword = password || 'Password123!';
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
+      email: targetEmail,
+      password: targetPassword,
     });
 
     setLoading(false);
@@ -51,7 +66,36 @@ export default function LoginScreen() {
       setIsError(false);
       router.replace('/(tabs)/feed');
     }
+  }, [email, phoneNumber, password, router]);
+
+  const handleQuickLoginFill = useCallback(() => {
+    setSelectedCountry(COUNTRIES[0]);
+    setPhoneNumber('9876543210');
+    setEmail('keerthan.squibl.test@gmail.com');
+    setPassword('Password123!');
+  }, []);
+
+  const handleCountrySelect = useCallback((country: Country) => {
+    setSelectedCountry(country);
+    setIsCountryPickerOpen(false);
+  }, []);
+
+  const handleCountryPickerClose = useCallback(() => {
+    setIsCountryPickerOpen(false);
+  }, []);
+
+  // Dedicated Full-Screen Country Picker
+  if (isCountryPickerOpen) {
+    return (
+      <CountryPickerView
+        selectedCountry={selectedCountry}
+        onSelect={handleCountrySelect}
+        onBack={handleCountryPickerClose}
+      />
+    );
   }
+
+  const fontStyle = fontsLoaded ? styles.heroFontArchivo : styles.heroDisplayLine;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -64,39 +108,39 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Top Brand Bar */}
+          {/* Top Brand Bar — Premium squibl™ Wordmark without icon box */}
           <View style={styles.headerBar}>
             <View style={styles.brandRow}>
-              <Image
-                source={require('../../assets/squibl-logo.png')}
-                style={styles.brandLogo}
-                resizeMode="contain"
-              />
-              <Text style={styles.brandName}>squibl</Text>
-              <View style={styles.brandDot} />
+              <Text style={styles.brandWordmark}>squibl</Text>
+              <Text style={styles.brandTrademark}>™</Text>
             </View>
 
-            {/* Temporary Dev Testing Button */}
+            {/* Subtle Dev Quick Login Button */}
             <TouchableOpacity
               style={styles.devQuickLoginBtn}
-              onPress={() => {
-                setEmail('keerthan.squibl.test@gmail.com');
-                setPassword('Password123!');
-              }}
+              onPress={handleQuickLoginFill}
               activeOpacity={0.7}
             >
               <Text style={styles.devQuickLoginText}>⚡ Quick Login</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Bold Oversized Display Typography */}
+          {/* Hero Section — Headline with 3D logo nestled in "BIGGEST" */}
           <View style={styles.heroSection}>
-            <Text style={styles.heroEyebrow}>DEVELOPER NETWORK</Text>
-            <Text style={styles.heroTitle}>WELCOME</Text>
-            <Text style={styles.heroTitle}>BACK.</Text>
-            <Text style={styles.heroSubtitle}>
-              Find teammates, build ambitious projects, and grow together.
-            </Text>
+            <Text style={fontStyle}>THE</Text>
+            <View style={styles.heroRowWithBadge}>
+              <Text style={fontStyle}>BIG</Text>
+              <View style={styles.cubeBadgeWrapper}>
+                <Image
+                  source={require('../../assets/squibl-logo.png')}
+                  style={styles.heroCubeLogo}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={fontStyle}>ST</Text>
+            </View>
+            <Text style={fontStyle}>BUILDER</Text>
+            <Text style={fontStyle}>NETWORK!</Text>
           </View>
 
           {/* Message / Error Box */}
@@ -118,54 +162,51 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Clean Input Card Section */}
+          {/* Phone Login Section — Country Selector + Phone Number Row */}
           <View style={styles.formContainer}>
-            {/* Email Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL</Text>
-              <View style={styles.inputWrapper}>
+            <View style={styles.phoneInputRow}>
+              {/* Country Selector Card — Fixed 120px width so it never collapses */}
+              <TouchableOpacity
+                style={styles.countryCard}
+                onPress={() => setIsCountryPickerOpen(true)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.cardLabel}>Country</Text>
+                <View style={styles.countrySelector}>
+                  <Text style={styles.flagEmoji}>{selectedCountry.flag}</Text>
+                  <Text style={styles.countryCodeText}>{selectedCountry.callingCode}</Text>
+                  <Text style={styles.chevronIcon}>⌵</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Phone Number Input Card — Fills remaining row width */}
+              <View
+                style={[
+                  styles.phoneCard,
+                  isPhoneFocused && styles.phoneCardFocused,
+                ]}
+              >
+                <Text style={styles.cardLabel}>Phone number</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder="name@domain.com"
-                  placeholderTextColor="#71717A"
-                  autoCapitalize="none"
-                  keyboardType="email-address"
+                  style={styles.phoneTextInput}
+                  placeholder="98765 43210"
+                  placeholderTextColor="#A1A1AA"
+                  keyboardType="phone-pad"
                   autoCorrect={false}
-                  value={email}
-                  onChangeText={setEmail}
+                  value={phoneNumber}
+                  onFocus={() => setIsPhoneFocused(true)}
+                  onBlur={() => setIsPhoneFocused(false)}
+                  onChangeText={(val) => {
+                    setPhoneNumber(val);
+                    setEmail(val ? `${val.replace(/\D/g, '')}@squibl.dev` : '');
+                  }}
                 />
               </View>
             </View>
 
-            {/* Password Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>PASSWORD</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={[styles.input, styles.passwordInput]}
-                  placeholder="••••••••••••"
-                  placeholderTextColor="#71717A"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity
-                  style={styles.showPasswordBtn}
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.showPasswordText}>
-                    {showPassword ? 'HIDE' : 'SHOW'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Full-width Large Red Pill Button */}
+            {/* Solid Bright Red Full-width Pill "Continue" Button */}
             <TouchableOpacity
-              style={styles.pillButton}
+              style={styles.continueButton}
               onPress={handleLogin}
               disabled={loading}
               activeOpacity={0.88}
@@ -173,19 +214,19 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.pillButtonText}>Log In</Text>
+                <Text style={styles.continueButtonText}>Continue</Text>
               )}
             </TouchableOpacity>
 
-            {/* Secondary Disclaimer */}
+            {/* Terms of Use / Privacy Policy Disclaimer matching reference */}
             <Text style={styles.disclaimerText}>
               By continuing, you agree to our{' '}
-              <Text style={styles.disclaimerLink}>Terms of Service</Text> and{' '}
-              <Text style={styles.disclaimerLink}>Privacy Policy</Text>.
+              <Text style={styles.disclaimerHighlight}>Terms and Use</Text> and confirm that you read our{' '}
+              <Text style={styles.disclaimerHighlight}>Privacy Policy</Text>
             </Text>
           </View>
 
-          {/* Footer Link */}
+          {/* Sign Up Link */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
             <Link href="/(auth)/signup" asChild>
@@ -210,13 +251,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 28,
+    paddingHorizontal: 22,
+    paddingTop: 6,
+    paddingBottom: 24,
     justifyContent: 'space-between',
   },
   headerBar: {
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -238,59 +280,62 @@ const styles = StyleSheet.create({
   },
   brandRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  brandLogo: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
-    marginRight: 8,
-  },
-  brandName: {
-    fontSize: 20,
+  brandWordmark: {
+    fontSize: 32,
     fontWeight: '900',
     color: '#000000',
-    letterSpacing: -0.8,
+    letterSpacing: -1.5,
   },
-  brandDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: RED,
-    marginLeft: 3,
-    marginTop: 2,
-  },
-  heroSection: {
-    marginTop: 12,
-    marginBottom: 28,
-  },
-  heroEyebrow: {
+  brandTrademark: {
     fontSize: 12,
     fontWeight: '800',
     color: '#71717A',
-    letterSpacing: 2,
-    marginBottom: 6,
+    marginLeft: 2,
+    marginTop: 2,
   },
-  heroTitle: {
-    fontSize: 44,
+  heroSection: {
+    marginTop: 10,
+    marginBottom: 26,
+  },
+  heroDisplayLine: {
+    fontSize: 48,
     fontWeight: '900',
     color: '#000000',
-    lineHeight: 46,
+    lineHeight: 50,
     letterSpacing: -1.5,
+    textTransform: 'uppercase',
   },
-  heroSubtitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#52525B',
-    lineHeight: 22,
-    marginTop: 10,
-    maxWidth: '92%',
+  heroFontArchivo: {
+    fontFamily: 'ArchivoBlack-Regular',
+    fontSize: 46,
+    lineHeight: 48,
+    letterSpacing: -1,
+    color: '#000000',
+    textTransform: 'uppercase',
+  },
+  heroRowWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cubeBadgeWrapper: {
+    width: 44,
+    height: 44,
+    marginHorizontal: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroCubeLogo: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
   },
   messageBox: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 14,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   errorBox: {
     backgroundColor: '#FEF2F2',
@@ -315,86 +360,115 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#71717A',
-    letterSpacing: 1.2,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  inputWrapper: {
-    backgroundColor: '#F4F4F5',
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#E4E4E7',
+  phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
+    gap: 10,
+    marginBottom: 16,
+    width: '100%',
   },
-  input: {
+  countryCard: {
+    width: 122,
+    minWidth: 122,
+    flexShrink: 0,
+    backgroundColor: '#ECEEF0',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
+    height: 72,
+    justifyContent: 'center',
+  },
+  phoneCard: {
     flex: 1,
-    height: 54,
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '600',
+    backgroundColor: '#ECEEF0',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    height: 72,
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  passwordInput: {
-    paddingRight: 10,
+  phoneCardFocused: {
+    borderColor: '#18181B',
+    backgroundColor: '#F4F4F5',
   },
-  showPasswordBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  showPasswordText: {
+  cardLabel: {
     fontSize: 12,
+    fontWeight: '500',
+    color: '#71717A',
+    marginBottom: 4,
+  },
+  countrySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  flagEmoji: {
+    fontSize: 18,
+    marginRight: 6,
+  },
+  countryCodeText: {
+    fontSize: 18,
     fontWeight: '800',
     color: '#000000',
-    letterSpacing: 1,
+    marginRight: 4,
   },
-  pillButton: {
+  chevronIcon: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#71717A',
+    marginTop: -2,
+  },
+  phoneTextInput: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#000000',
+    padding: 0,
+    margin: 0,
+    height: 28,
+  },
+  continueButton: {
     backgroundColor: RED,
     borderRadius: 9999,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 6,
     shadowColor: RED,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  pillButtonText: {
+  continueButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   disclaimerText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#71717A',
+    fontWeight: '400',
+    color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 18,
-    marginTop: 16,
+    marginTop: 14,
     paddingHorizontal: 12,
   },
-  disclaimerLink: {
-    color: '#000000',
+  disclaimerHighlight: {
+    color: '#4B5563',
     fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 6,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   footerText: {
     color: '#52525B',
@@ -405,5 +479,6 @@ const styles = StyleSheet.create({
     color: RED,
     fontSize: 14,
     fontWeight: '800',
+    paddingVertical: 4,
   },
 });

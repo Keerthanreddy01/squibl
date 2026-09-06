@@ -6,6 +6,7 @@ import {
   Image,
   Animated,
   Dimensions,
+  Easing,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 
@@ -25,24 +26,25 @@ export function SplashScreenView({ onFinish }: SplashScreenViewProps) {
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Entrance: animate logo and typography in
+    // Entrance: animate logo and typography in with 60 FPS native driver
     Animated.parallel([
       Animated.timing(contentFadeAnim, {
         toValue: 1,
-        duration: 450,
+        duration: 400,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
         useNativeDriver: true,
       }),
       Animated.spring(contentScaleAnim, {
         toValue: 1,
-        friction: 6,
-        tension: 50,
+        friction: 7,
+        tension: 60,
         useNativeDriver: true,
       }),
     ]).start();
 
     // Check auth session in parallel with display delay
     let isMounted = true;
-    const minDisplayPromise = new Promise((resolve) => setTimeout(resolve, 2200));
+    const minDisplayPromise = new Promise((resolve) => setTimeout(resolve, 2000));
     const authPromise = supabase.auth.getSession();
 
     Promise.all([minDisplayPromise, authPromise])
@@ -50,10 +52,11 @@ export function SplashScreenView({ onFinish }: SplashScreenViewProps) {
         if (!isMounted) return;
         const hasSession = !!data?.session;
 
-        // Smooth exit fade
+        // Smooth 60 FPS exit fade
         Animated.timing(screenFadeAnim, {
           toValue: 0,
-          duration: 350,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start(() => {
           onFinish(hasSession);
@@ -63,7 +66,8 @@ export function SplashScreenView({ onFinish }: SplashScreenViewProps) {
         if (!isMounted) return;
         Animated.timing(screenFadeAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start(() => {
           onFinish(false);
@@ -73,7 +77,7 @@ export function SplashScreenView({ onFinish }: SplashScreenViewProps) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [contentFadeAnim, contentScaleAnim, screenFadeAnim, onFinish]);
 
   return (
     <Animated.View
@@ -143,23 +147,22 @@ const styles = StyleSheet.create({
   logoCard: {
     width: 124,
     height: 124,
-    borderRadius: 30,
+    borderRadius: 28,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 26,
-    borderWidth: 1.5,
-    borderColor: '#F4F4F5',
+    overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 8,
   },
   logo: {
-    width: 106,
-    height: 106,
-    borderRadius: 24,
+    width: 124,
+    height: 124,
+    borderRadius: 28,
   },
   titleRow: {
     flexDirection: 'row',

@@ -1,24 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { PressableScale } from '../../components/PressableScale';
+
+const RED = '#E50914';
 
 export default function SignupScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
-  async function handleSignup() {
+  const handleSignup = useCallback(async () => {
     if (!email || !password) {
       setMessage('Please enter both email and password');
       setIsError(true);
@@ -52,151 +60,243 @@ export default function SignupScreen() {
       setMessage('Signup successful! Please check your email to confirm your account.');
       setIsError(false);
     }
-  }
+  }, [email, password, router]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Join Squibl</Text>
-      <Text style={styles.subtitle}>Create your builder account</Text>
-
-      {message && (
-        <View
-          style={[
-            styles.messageBox,
-            isError ? styles.errorBox : styles.successBox,
-          ]}
-        >
-          <Text
-            style={[
-              styles.messageText,
-              isError ? styles.errorText : styles.successText,
-            ]}
-          >
-            {message}
-          </Text>
-        </View>
-      )}
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#71717a"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#71717a"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSignup}
-        disabled={loading}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {loading ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text style={styles.buttonText}>Create Account</Text>
-        )}
-      </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Join Squibl</Text>
+            <Text style={styles.subtitle}>
+              Create your builder account and start collaborating
+            </Text>
+          </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Already have an account? </Text>
-        <Link href="/(auth)/login" style={styles.link}>
-          Sign In
-        </Link>
-      </View>
-    </View>
+          {/* Message / Error Notification */}
+          {message && (
+            <View
+              style={[
+                styles.messageBox,
+                isError ? styles.errorBox : styles.successBox,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  isError ? styles.errorText : styles.successText,
+                ]}
+              >
+                {message}
+              </Text>
+            </View>
+          )}
+
+          {/* Form Fields */}
+          <View style={styles.formContainer}>
+            <View
+              style={[
+                styles.inputWrapper,
+                isEmailFocused && styles.inputWrapperFocused,
+              ]}
+            >
+              <Text style={styles.inputLabel}>Email address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="name@example.com"
+                placeholderTextColor="#A1A1AA"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setIsEmailFocused(true)}
+                onBlur={() => setIsEmailFocused(false)}
+              />
+            </View>
+
+            <View
+              style={[
+                styles.inputWrapper,
+                isPasswordFocused && styles.inputWrapperFocused,
+              ]}
+            >
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="At least 6 characters"
+                placeholderTextColor="#A1A1AA"
+                secureTextEntry
+                autoCapitalize="none"
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setIsPasswordFocused(true)}
+                onBlur={() => setIsPasswordFocused(false)}
+              />
+            </View>
+
+            {/* Primary Action Button */}
+            <PressableScale
+              style={styles.button}
+              onPress={handleSignup}
+              disabled={loading}
+              activeScale={0.97}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Create Account</Text>
+              )}
+            </PressableScale>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <Link href="/(auth)/login" asChild>
+              <PressableScale activeScale={0.94}>
+                <Text style={styles.linkText}>Sign In</Text>
+              </PressableScale>
+            </Link>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#09090b',
-    padding: 24,
-    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 28,
+    justifyContent: 'space-between',
+  },
+  header: {
+    marginBottom: 32,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#000000',
+    letterSpacing: -1,
     marginBottom: 8,
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    color: '#a1a1aa',
+    fontSize: 15,
+    color: '#71717A',
+    fontWeight: '500',
+    lineHeight: 22,
+  },
+  formContainer: {
+    width: '100%',
     marginBottom: 24,
-    textAlign: 'center',
+  },
+  inputWrapper: {
+    backgroundColor: '#F4F4F5',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  inputWrapperFocused: {
+    borderColor: '#18181B',
+    backgroundColor: '#FFFFFF',
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#71717A',
+    marginBottom: 4,
+  },
+  input: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+    padding: 0,
+    margin: 0,
+    height: 26,
+  },
+  button: {
+    backgroundColor: RED,
+    borderRadius: 9999,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    shadowColor: RED,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   messageBox: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginBottom: 20,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#ef4444',
+    backgroundColor: '#FEF2F2',
     borderWidth: 1,
+    borderColor: '#F87171',
   },
   successBox: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-    borderColor: '#22c55e',
+    backgroundColor: '#F4F4F5',
     borderWidth: 1,
+    borderColor: '#000000',
   },
   messageText: {
     fontSize: 14,
+    fontWeight: '600',
     textAlign: 'center',
   },
   errorText: {
-    color: '#ef4444',
+    color: '#B91C1C',
   },
   successText: {
-    color: '#22c55e',
-  },
-  input: {
-    backgroundColor: '#18181b',
-    borderWidth: 1,
-    borderColor: '#27272a',
-    borderRadius: 8,
-    padding: 14,
-    color: '#ffffff',
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#ec4899',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#000000',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    alignItems: 'center',
+    paddingTop: 16,
   },
   footerText: {
-    color: '#a1a1aa',
+    color: '#52525B',
     fontSize: 14,
+    fontWeight: '500',
   },
-  link: {
-    color: '#ec4899',
+  linkText: {
+    color: RED,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    paddingVertical: 4,
   },
 });
