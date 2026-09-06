@@ -22,7 +22,7 @@ function AnimatedStat({
   loading?: boolean;
   className?: string;
 }) {
-  // Clamp: Firebase can return -1 as a sentinel on permission errors
+  // Clamp to safe non-negative integer
   const safeEnd = Math.max(0, isFinite(end) ? Math.floor(end) : 0);
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
@@ -83,7 +83,7 @@ export function InfrastructureSection() {
   const [activeRegion, setActiveRegion] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
 
-  // ── Live stats from Firebase ──
+  // ── Live stats from Supabase ──
   const { stats, isLoading } = usePlatformStats();
 
   useEffect(() => {

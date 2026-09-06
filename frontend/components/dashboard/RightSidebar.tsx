@@ -3,15 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { collection, query, limit, getDocs, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase/client";
+import { getAllProfiles } from "@/lib/profiles";
 import { getUserProjects } from "@/lib/projects";
 import { 
-  Search, MoreHorizontal, Cpu, Flame, Users, Star, 
-  Terminal, ArrowUpRight, Volume2, Zap, ArrowRight, ShieldCheck,
+  Search, Cpu, Flame, Users, Star, 
+  ArrowUpRight, Volume2, ShieldCheck,
   Smartphone
 } from "lucide-react";
-import SideRays from "@/components/ui/SideRays";
 
 type Builder = {
   id: string;
@@ -40,47 +39,47 @@ export default function RightSidebar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
 
+  const userId = user?.id || (user as any)?.uid || "";
+
   useEffect(() => {
-    if (!db) return;
-    const coll = collection(db, "app_waitlist");
-    const unsubscribe = onSnapshot(
-      coll,
-      (snapshot) => {
-        setWaitlistCount(snapshot.size);
-      },
-      (error) => {
-        console.error("Error listening to waitlist:", error);
+    async function fetchWaitlistCount() {
+      try {
+        const { count } = await supabase
+          .from("app_waitlist")
+          .select("*", { count: "exact", head: true });
+        setWaitlistCount(count || 0);
+      } catch (err) {
+        console.error("Error fetching waitlist count:", err);
       }
-    );
-    return () => unsubscribe();
+    }
+    fetchWaitlistCount();
   }, []);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const q = query(collection(db, "builder_profiles"), limit(5));
-        const snapshot = await getDocs(q);
-        const users = snapshot.docs.map(doc => {
-          const data = doc.data();
-          // Fallback mock stacks for visual aesthetic
-          const mockStacks = [
-            ["Rust", "WASM", "Go"],
-            ["Next.js", "React", "TypeScript"],
-            ["Python", "PyTorch", "MLOps"],
-            ["Solidity", "Ethereum", "Ethers"],
-            ["Docker", "K8s", "AWS"]
-          ];
-          const seedIdx = doc.id.charCodeAt(0) % mockStacks.length;
-          return {
-            id: doc.id,
-            username: data.username || data.email?.split('@')[0] || "user",
-            name: data.full_name || "Builder",
-            avatar: data.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + doc.id,
-            tagline: data.availability || "Building in public",
-            stack: mockStacks[seedIdx]
-          };
-        });
-        setSuggestedUsers(users.filter(u => u.id !== user?.uid));
+        const { data: allProfiles } = await getAllProfiles();
+        const mockStacks = [
+          ["Rust", "WASM", "Go"],
+          ["Next.js", "React", "TypeScript"],
+          ["Python", "PyTorch", "MLOps"],
+          ["Solidity", "Ethereum", "Ethers"],
+          ["Docker", "K8s", "AWS"]
+        ];
+        
+        const users: Builder[] = (allProfiles || [])
+          .filter(p => p.id !== userId && p.uid !== userId)
+          .slice(0, 5)
+          .map((p, idx) => ({
+            id: p.id || p.uid || "",
+            username: p.username || "user",
+            name: p.full_name || p.username || "Builder",
+            avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id || idx}`,
+            tagline: p.availability || p.bio || "Building in public",
+            stack: p.stack && p.stack.length > 0 ? p.stack : mockStacks[idx % mockStacks.length]
+          }));
+
+        setSuggestedUsers(users);
       } catch (error) {
         console.error("Error fetching suggested users:", error);
       } finally {
@@ -89,18 +88,18 @@ export default function RightSidebar() {
     };
     
     fetchUsers();
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     const fetchProjects = async () => {
-      if (!user?.uid) {
+      if (!userId) {
         setProjects([]);
         setLoadingProjects(false);
         return;
       }
 
       try {
-        const { data } = await getUserProjects(user.uid);
+        const { data } = await getUserProjects(userId);
         setProjects((data || []).slice(0, 3) as Project[]);
       } catch (error) {
         console.error("Error fetching projects:", error);
@@ -111,7 +110,7 @@ export default function RightSidebar() {
     };
 
     fetchProjects();
-  }, [user]);
+  }, [userId]);
 
   return (
     <div className="hidden lg:flex w-[350px] min-w-[350px] flex-col h-full bg-transparent p-4 gap-5 overflow-y-auto no-scrollbar relative z-10">
@@ -131,7 +130,7 @@ export default function RightSidebar() {
         </div>
       </div>
 
-      {/* Mobile App Pre-registration Card - Custom Graphic Design */}
+      {/* Mobile App Pre-registration Card */}
       <section 
         className="relative overflow-hidden w-full shrink-0 rounded-[24px] cursor-pointer flex flex-col items-center pt-8 pb-6 px-4 bg-white dark:bg-black border border-gray-200 dark:border-white/10 group shadow-[0_10px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
         onClick={() => window.open("/pre-register", "_blank")}
@@ -145,32 +144,26 @@ export default function RightSidebar() {
           .font-syncopate { font-family: 'Syncopate', sans-serif; }
         `}} />
 
-        {/* Top Header */}
         <h3 className="font-syncopate text-black dark:text-white text-[13px] uppercase tracking-widest mb-3 relative z-10 font-bold">
           Squibl
         </h3>
         
-        {/* Pill */}
         <div className="border border-[#D4F842] rounded-full px-4 py-1 mb-8 relative z-10 bg-white dark:bg-black">
           <span className="font-syne text-black dark:text-white text-[10px] uppercase tracking-[0.2em] font-bold">
             Official Mobile Launch
           </span>
         </div>
 
-        {/* Center Arch Shape */}
         <div className="w-[88%] bg-[#D4F842] rounded-t-[70px] rounded-b-md relative z-10 pt-10 pb-8 px-4 flex flex-col items-center shadow-[0_0_30px_rgba(212,248,66,0.1)] group-hover:shadow-[0_0_50px_rgba(212,248,66,0.25)] transition-shadow duration-500">
           
-          {/* Toggle graphic in top right */}
           <div className="absolute top-6 right-6 bg-[#063CB9] w-9 h-4.5 rounded-full p-[2px] flex items-center justify-end">
             <div className="bg-white w-3.5 h-3.5 rounded-full" />
           </div>
 
-          {/* Numbers */}
           <div className="font-syne text-[#063CB9] text-[56px] leading-none font-extrabold tracking-tighter mt-1">
             {waitlistCount === null ? "..." : (waitlistCount < 10 ? `0${waitlistCount}` : waitlistCount)}
           </div>
           
-          {/* DAYS TO GO / BUILDERS WAITING */}
           <div className="font-syncopate text-white dark:text-black text-[22px] leading-none font-bold tracking-tight mt-2 uppercase w-full text-center">
             Builders
           </div>
@@ -178,7 +171,6 @@ export default function RightSidebar() {
             Waiting
           </div>
 
-          {/* Link */}
           <div className="mt-8 text-center flex flex-col items-center">
             <div className="text-white dark:text-black text-[12px] font-medium mb-1 font-sans">Join the wait list</div>
             <div className="text-[#063CB9] text-[10px] font-medium font-sans border-b border-[#063CB9]/40 pb-[1px] hover:border-[#063CB9] transition-colors">
@@ -187,7 +179,6 @@ export default function RightSidebar() {
           </div>
         </div>
 
-        {/* Faded bottom text */}
         <div className="absolute bottom-0 w-full overflow-hidden flex flex-col items-center justify-end pointer-events-none">
           <div className="font-syncopate text-[#D4F842] opacity-[0.08] text-[40px] font-bold uppercase tracking-tighter transform translate-y-4 italic whitespace-nowrap">
             The App Is Coming
@@ -195,19 +186,13 @@ export default function RightSidebar() {
         </div>
       </section>
 
-
-
-      {/* 3. AI Co-builder Matchmaker Card - ULTRA PREMIUM DARK */}
+      {/* 3. AI Co-builder Matchmaker Card */}
       <section className="relative flex flex-col rounded-[24px] overflow-hidden border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-[#0a0a0a] shrink-0 group hover:border-gray-200 dark:border-white/[0.12] transition-all duration-500 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)]">
-        
-        {/* The "Poster" Graphic Area */}
         <div className="relative h-[160px] w-full overflow-hidden flex flex-col p-5">
-          {/* Complex Glow Backgrounds */}
           <div className="absolute inset-0 bg-gray-100 dark:bg-[#050505] z-0"></div>
           <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[150%] bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.22)_0%,rgba(0,0,0,0)_60%)] blur-[30px] z-0 transition-transform duration-1000 group-hover:scale-110"></div>
           <div className="absolute bottom-[-20%] right-[-20%] w-[100%] h-[100%] bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.18)_0%,rgba(0,0,0,0)_60%)] blur-[30px] z-0"></div>
           
-          {/* Dot Pattern Overlay */}
           <div className="absolute inset-0 z-0 opacity-20" style={{ backgroundImage: 'radial-gradient(rgba(150, 150, 150, 0.4) 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
 
           <div className="relative z-10 flex justify-between items-start w-full">
@@ -226,7 +211,6 @@ export default function RightSidebar() {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="relative z-10 flex flex-col p-5 bg-white dark:bg-[#0a0a0a] border-t border-gray-200 dark:border-white/[0.04]">
           <div className="flex flex-col gap-0.5 mb-4">
             <span className="text-black dark:text-white/95 font-medium text-[14px]">AI Co-builder Matches</span>
@@ -256,7 +240,7 @@ export default function RightSidebar() {
         </div>
       </section>
 
-      {/* 4. Live Collab Rooms - ULTRA PREMIUM DARK */}
+      {/* 4. Live Collab Rooms */}
       <section className="relative flex flex-col rounded-[24px] overflow-hidden border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-[#0a0a0a] shrink-0 group hover:border-gray-200 dark:border-white/[0.12] transition-all duration-500 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)]">
         <div className="relative h-[160px] w-full overflow-hidden flex flex-col p-5">
           <div className="absolute inset-0 bg-gray-100 dark:bg-[#050505] z-0"></div>
@@ -309,7 +293,7 @@ export default function RightSidebar() {
         </div>
       </section>
 
-      {/* 5. Top Ships of the Week - ULTRA PREMIUM DARK */}
+      {/* 5. Top Ships of the Week */}
       <section className="relative flex flex-col rounded-[24px] overflow-hidden border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-[#0a0a0a] shrink-0 group hover:border-gray-200 dark:border-white/[0.12] transition-all duration-500 shadow-[0_8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)]">
         <div className="relative h-[160px] w-full overflow-hidden flex flex-col p-5">
           <div className="absolute inset-0 bg-gray-100 dark:bg-[#050505] z-0"></div>

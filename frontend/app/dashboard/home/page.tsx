@@ -38,9 +38,7 @@ import {
   User,
   Pencil
 } from "lucide-react";
-import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { createPost, likePost, addComment, getComments } from "@/lib/posts";
+import { createPost, likePost, addComment, getComments, getAllPosts } from "@/lib/posts";
 import PreRegisterMobilePromo from "@/components/PreRegisterMobilePromo";
 import LeftSidebar from "@/components/dashboard/LeftSidebar";
 import RightSidebar from "@/components/dashboard/RightSidebar";
@@ -82,8 +80,9 @@ function PostCard({
   const [isCommenting, setIsCommenting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const userId = user.id;
   const likesCount = Array.isArray(post.likes) ? post.likes.length : 0;
-  const isLiked = Array.isArray(post.likes) && post.likes.includes(user.uid);
+  const isLiked = Array.isArray(post.likes) && post.likes.includes(userId);
   const isTruncated = post.content?.length > 280;
   const displayContent = isExpanded || !isTruncated ? post.content : post.content?.slice(0, 280) + "…";
 
@@ -111,10 +110,10 @@ function PostCard({
     if (!newComment.trim() || isCommenting) return;
     setIsCommenting(true);
     const commentData = {
-      uid: user.uid,
-      author_name: user.displayName || "Builder",
-      author_avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
-      author_username: user.email?.split('@')[0] || "builder",
+      uid: userId,
+      author_name: user.user_metadata?.full_name || user.user_metadata?.username || user.email?.split('@')[0] || "Builder",
+      author_avatar: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
+      author_username: user.user_metadata?.username || user.email?.split('@')[0] || "builder",
       content: newComment.trim(),
     };
     setComments(prev => [...prev, { ...commentData, id: Date.now().toString() }]);
@@ -328,7 +327,7 @@ function PostCard({
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/[0.08] flex flex-col gap-4 relative z-20">
               <div className="flex gap-3">
                 <img
-                  src={user?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`}
+                  src={user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`}
                   alt=""
                   className="w-8 h-8 rounded-full object-cover shrink-0 bg-gray-100 dark:bg-neutral-800"
                   referrerPolicy="no-referrer"
@@ -445,18 +444,17 @@ export default function DashboardHomePage() {
     }
   }, [router]);
 
+  const fetchFeedPosts = React.useCallback(async () => {
+    const { data } = await getAllPosts(50);
+    if (data) setPosts(data);
+  }, []);
+
   useEffect(() => {
     if (!user) return;
-    const qPosts = query(collection(db, "posts"), orderBy("created_at", "desc"), limit(50));
-    const unsubscribePosts = onSnapshot(qPosts, (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPosts(list);
-    });
-    return () => unsubscribePosts();
-  }, [user]);
+    fetchFeedPosts();
+  }, [user, fetchFeedPosts]);
 
-  const toggleRecording = async () => {
-    setMicError(null);
+  const toggleAudioRecording = async () => {
     if (isRecording) {
       mediaRecorderRef.current?.stop();
       setIsRecording(false);
@@ -506,11 +504,16 @@ export default function DashboardHomePage() {
       .map((t) => t.replace(/^#/, "").trim())
       .filter(Boolean);
 
+    const userId = user.id;
+    const authorName = user.user_metadata?.full_name || user.user_metadata?.username || user.email?.split("@")[0] || "Builder";
+    const authorAvatar = user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`;
+    const authorUsername = user.user_metadata?.username || user.email?.split("@")[0] || "builder";
+
     const result = await createPost({
-      uid: user.uid,
-      author_name: user.displayName || "Builder",
-      author_avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
-      author_username: user.email?.split("@")[0] || "builder",
+      uid: userId,
+      author_name: authorName,
+      author_avatar: authorAvatar,
+      author_username: authorUsername,
       content: trimmed,
       stack_tags: tags,
       post_type: selectedPostType,
@@ -525,27 +528,29 @@ export default function DashboardHomePage() {
       setAudioBlob(null);
       setPostVisibility('public');
       setSelectedProject(null);
+      await fetchFeedPosts();
     }
   };
 
   const handleLikeClick = async (postId: string) => {
     if (!user) return;
+    const userId = user.id;
     const post = posts.find(p => p.id === postId);
     if (!post) return;
     const likes = Array.isArray(post.likes) ? post.likes : [];
-    const isLiked = likes.includes(user.uid);
-    const newLikes = isLiked ? likes.filter((id: string) => id !== user.uid) : [...likes, user.uid];
+    const isLiked = likes.includes(userId);
+    const newLikes = isLiked ? likes.filter((id: string) => id !== userId) : [...likes, userId];
 
     // Optimistic update
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: newLikes } : p));
     
     // Server update
-    const { error } = await likePost(postId, user.uid);
+    const { error } = await likePost(postId, userId);
     if (error) {
       const msg = error instanceof Error ? error.message : typeof error === 'string' ? error : "Failed to update like status";
       toast.error(msg);
       // Revert optimistic update on failure
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes } : p));
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: likes } : p));
     }
   };
 
@@ -568,7 +573,8 @@ export default function DashboardHomePage() {
     );
   }
 
-  const avatarSrc = user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`;
+  const userId = user.id;
+  const avatarSrc = user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`;
 
   return (
     <div className="flex justify-center min-h-screen bg-[#F8F9FA] dark:bg-[#000000] text-black dark:text-white font-sans overflow-x-hidden overflow-y-hidden selection:bg-blue-500/30 selection:text-black dark:text-white relative">
@@ -784,7 +790,7 @@ export default function DashboardHomePage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => toggleRecording()}
+                          onClick={() => toggleAudioRecording()}
                           className="px-3 py-1 rounded-lg bg-red-500 text-white dark:text-black hover:bg-red-400 transition-colors cursor-pointer text-[11px] font-bold border-none"
                         >
                           Done
@@ -853,7 +859,7 @@ export default function DashboardHomePage() {
                           <Image className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleRecording(); }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleAudioRecording(); }}
                           className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer border-none bg-transparent ${isRecording ? "text-red-500 bg-red-500/10" : "text-gray-500 dark:text-neutral-400 hover:text-white dark:text-black dark:hover:text-black dark:text-white hover:bg-gray-100 dark:hover:bg-black/10 dark:bg-white/10"}`}
                           title="Record Voice"
                         >

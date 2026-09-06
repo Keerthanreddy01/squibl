@@ -19,7 +19,7 @@ function AnimatedNumber({
   prefix?: string;
   loading?: boolean;
 }) {
-  // Clamp: Firebase getCountFromServer returns -1 as a sentinel on permission errors
+  // Clamp to safe non-negative integer
   const safeEnd = Math.max(0, isFinite(end) ? Math.floor(end) : 0);
   const [count, setCount] = useState(0);
   const [isScrambling, setIsScrambling] = useState(true);
@@ -265,7 +265,7 @@ export function MetricsSection() {
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
-  // ── Live stats from Firebase ──
+  // ── Live stats from Supabase ──
   const { stats, isLoading } = usePlatformStats();
 
   useEffect(() => {

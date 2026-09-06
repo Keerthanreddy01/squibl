@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase/client";
 
 export default function AdminCleanupPage() {
   const [status, setStatus] = useState("Idle");
@@ -10,14 +9,13 @@ export default function AdminCleanupPage() {
   const cleanupFakeEntries = async () => {
     setStatus("Cleaning up...");
     try {
-      const q = query(
-        collection(db, 'app_waitlist'),
-        where('position', '>', 4)
-      );
-      const snapshot = await getDocs(q);
-      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-      setStatus(`Deleted ${snapshot.docs.length} fake entries.`);
+      const { error, count } = await supabase
+        .from('app_waitlist')
+        .delete({ count: 'exact' })
+        .gt('position', 4);
+
+      if (error) throw error;
+      setStatus(`Deleted ${count ?? 0} fake entries.`);
     } catch (error: any) {
       setStatus(`Error: ${error.message}`);
     }
@@ -28,7 +26,7 @@ export default function AdminCleanupPage() {
       <h1 className="text-2xl font-bold mb-4">Admin Cleanup</h1>
       <button 
         onClick={cleanupFakeEntries}
-        className="bg-red-600 hover:bg-red-700 text-black dark:text-white px-4 py-2 rounded"
+        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
       >
         Run Cleanup Script
       </button>

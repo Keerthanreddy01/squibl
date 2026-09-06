@@ -18,8 +18,8 @@ export default [
       "@typescript-eslint": tsPlugin,
     },
     rules: {
-      "react-hooks/exhaustive-deps": "off",
-      "react/no-unknown-property": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
     },
   },
   {

@@ -4,7 +4,7 @@
  *
  * Features:
  * - Fetches data on mount
- * - In-memory caching (5-minute TTL) to avoid redundant Firestore reads
+ * - In-memory caching (1-minute TTL) to avoid redundant database reads
  * - Loading skeleton support via `isLoading` flag
  * - Graceful error handling — always returns 0 values on failure
  */
@@ -80,7 +80,6 @@ export function usePlatformStats(): UsePlatformStatsResult {
     return () => {
       isMountedRef.current = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { stats, isLoading, error, refetch: loadStats }

@@ -64,6 +64,15 @@ __v0_jsx-dev-runtime.ts
 # ── Misc ──────────────────────────────────────────────────────────────────────
 .clerk/
 
+# ── Mobile / Expo ─────────────────────────────────────────────────────────────
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
 # ── Stray root-level Next.js files (guard against accidental placement at root) ─
 /app/
 /components/

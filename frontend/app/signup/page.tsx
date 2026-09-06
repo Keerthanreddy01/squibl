@@ -3,15 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithGoogle, signInWithGithub, signUpWithEmail, checkPasswordStrength } from "@/lib/auth";
+import { getProfile } from "@/lib/profiles";
+import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-import { auth } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Chrome, Github, Circle, Eye, EyeOff } from "lucide-react";
+import { Chrome, Github, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function SignupPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,14 +28,13 @@ export default function SignupPage() {
         .map(u => u.trim())
         .filter(Boolean);
 
-      if (!adminUids.includes(uid)) {
+      if (adminUids.length > 0 && !adminUids.includes(uid)) {
         router.push("/pre-register");
         return;
       }
 
-      const docRef = doc(db, "builder_profiles", uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().onboarding_completed) {
+      const { data: profile } = await getProfile(uid);
+      if (profile && profile.onboarding_completed) {
         router.push("/dashboard/home");
       } else {
         router.push("/onboarding");
@@ -46,11 +45,10 @@ export default function SignupPage() {
   }, [router]);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user: any) => {
-      if (user) checkAndRedirect(user.uid);
-    });
-    return () => unsubscribe();
-  }, [checkAndRedirect]);
+    if (!authLoading && user) {
+      checkAndRedirect(user.id);
+    }
+  }, [user, authLoading, checkAndRedirect]);
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +63,8 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const { data, error: authError } = await signUpWithEmail(email, password);
+      const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+      const { data, error: authError } = await signUpWithEmail(email, password, { full_name: fullName });
       if (authError) {
         setError(authError.message);
       } else {
@@ -81,7 +80,10 @@ export default function SignupPage() {
   const handleGoogleSignIn = async () => {
     setError(null);
     try {
-      await signInWithGoogle();
+      const { error: googleError } = await signInWithGoogle();
+      if (googleError) {
+        setError(googleError.message || "Failed to sign in with Google.");
+      }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
     }
@@ -90,7 +92,10 @@ export default function SignupPage() {
   const handleGithubSignIn = async () => {
     setError(null);
     try {
-      await signInWithGithub();
+      const { error: githubError } = await signInWithGithub();
+      if (githubError) {
+        setError(githubError.message || "Failed to sign in with GitHub.");
+      }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with GitHub.");
     }
@@ -250,19 +255,6 @@ export default function SignupPage() {
         </motion.div>
       </div>
     </main>
-  );
-}
-
-// ── Reusable components created at bottom of file ────────────────────────────
-
-function StepItem({ number, text, active }: { number: number; text: string; active?: boolean }) {
-  return (
-    <div className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${active ? 'bg-white text-white dark:text-black border border-black/20 dark:border-white' : 'bg-brand-gray text-black dark:text-white border-none'}`}>
-      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold shrink-0 ${active ? 'bg-white dark:bg-black text-black dark:text-white' : 'bg-black/10 dark:bg-white/10 text-black dark:text-white/40'}`}>
-        {number}
-      </div>
-      <span className="font-medium text-sm">{text}</span>
-    </div>
   );
 }
 

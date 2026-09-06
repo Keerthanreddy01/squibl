@@ -3,21 +3,19 @@
  *
  * Manages the `cs_uid` routing-signal cookie.
  *
- * ⚠️  ROUTING SIGNAL ONLY — NEVER USE FOR AUTH CHECKS.
- *     This cookie is not signed or verified. It exists solely to let
- *     middleware.ts route authenticated users to the /locked page without
- *     needing to run the Firebase Admin SDK on every request.
- *     Any actual authorization MUST use Firebase Auth (onAuthStateChanged /
- *     auth.currentUser), NOT this cookie.
+ * ⚠️  ROUTING SIGNAL ONLY — NEVER USE FOR PRIVILEGED AUTH CHECKS.
+ *     This cookie is a client-side routing hint.
+ *     All secure authorization is enforced via Supabase session checks
+ *     and PostgreSQL Row Level Security (RLS) policies.
  */
 
 const COOKIE_NAME = 'cs_uid';
 // 7 days in seconds
-const MAX_AGE    = 60 * 60 * 24 * 7;
+const MAX_AGE = 60 * 60 * 24 * 7;
 
 /**
- * Sets the cs_uid cookie. Call this immediately after a successful Firebase
- * sign-in or sign-up, passing the authenticated user's UID.
+ * Sets the cs_uid cookie. Call this immediately after a successful
+ * sign-in or sign-up, passing the authenticated user's ID.
  */
 export function setAuthCookie(uid: string): void {
   if (typeof document === 'undefined') return;

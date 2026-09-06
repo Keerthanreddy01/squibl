@@ -22,7 +22,7 @@ type Project = {
   author_name?: string;
 };
 
-const filterOptions = ["All", "React", "Next.js", "Firebase", "Supabase", "TypeScript"];
+const filterOptions = ["All", "React", "Next.js", "Supabase", "TypeScript", "PostgreSQL", "Tailwind"];
 
 function normalizeStack(stack: Project["tech_stack"]) {
   if (Array.isArray(stack)) {

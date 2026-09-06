@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { getProfile } from "@/lib/profiles";
 import { Navigation } from "@/components/landing/navigation";
 import { HeroSection } from "@/components/landing/hero-section";
 import { BuilderFolioSection } from "@/components/landing/builder-folio-section";
@@ -36,8 +35,9 @@ export default function Home() {
     // Logged in → check onboarding then redirect
     const redirect = async () => {
       try {
-        const snap = await getDoc(doc(db, "builder_profiles", user.uid));
-        if (snap.exists() && snap.data().onboarding_completed) {
+        const userId = user.id || (user as any).uid;
+        const { data: profile } = await getProfile(userId);
+        if (profile && profile.onboarding_completed) {
           router.replace("/dashboard/home");
         } else {
           router.replace("/onboarding");
@@ -58,23 +58,23 @@ export default function Home() {
     );
   }
 
-  // Not logged in → show the landing page
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-black">
+    <div className="min-h-screen bg-black text-white selection:bg-white/30 selection:text-white relative overflow-hidden">
       <Navigation />
-      <HeroSection />
-      <BuilderFolioSection />
-      <HeroFolioTransition />
-      <SquiblSmashSection />
-      <FeaturesSection />
-      <HowItWorksSection />
-      <ScrollingRevealSection />
-      <div className="h-24 sm:h-36 bg-black w-full" />
-      <IntegrationsSection />
-      <UniqueEffectsSection />
-      <TestimonialsSection />
-      <CtaSection />
+      <main className="relative z-10">
+        <HeroSection />
+        <HeroFolioTransition />
+        <BuilderFolioSection />
+        <SquiblSmashSection />
+        <FeaturesSection />
+        <HowItWorksSection />
+        <IntegrationsSection />
+        <UniqueEffectsSection />
+        <TestimonialsSection />
+        <ScrollingRevealSection />
+        <CtaSection />
+      </main>
       <FooterSection />
-    </main>
+    </div>
   );
 }

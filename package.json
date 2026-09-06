@@ -2,31 +2,35 @@
   "name": "squibl",
   "version": "1.0.0",
   "private": true,
-  "description": "Squibl monorepo — Next.js frontend + Express/Node.js backend",
+  "description": "Squibl monorepo — Next.js frontend, Express API, Expo mobile, and shared packages",
   "engines": {
     "node": ">=18"
   },
+  "workspaces": [
+    "frontend",
+    "backend",
+    "mobile",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run dev:frontend",
     "dev:all": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && npm run dev",
-    "build": "npm run build:backend && npm run build:frontend",
-    "build:frontend": "cd frontend && npm run build",
-    "build:backend": "cd backend && npm run build",
-    "start:frontend": "cd frontend && npm run start",
-    "start:backend": "cd backend && npm run start",
-    "lint:frontend": "cd frontend && npm run lint",
-    "lint:backend": "cd backend && npm run lint",
-    "lint": "npm run lint:frontend && npm run lint:backend",
-    "typecheck": "cd backend && npx tsc --noEmit && cd ../frontend && npx tsc --noEmit",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "clean": "rimraf frontend/.next backend/dist node_modules frontend/node_modules backend/node_modules"
+    "dev:frontend": "npm run dev --workspace=squibl-frontend",
+    "dev:backend": "npm run dev --workspace=squibl-api",
+    "build:packages": "npm run build --workspace=@squibl/database && npm run build --workspace=@squibl/constants && npm run build --workspace=@squibl/types && npm run build --workspace=@squibl/validation",
+    "build:backend": "npm run build --workspace=squibl-api",
+    "build:frontend": "npm run build --workspace=squibl-frontend",
+    "build": "npm run build:packages && npm run build:backend && npm run build:frontend",
+    "start:frontend": "npm run start --workspace=squibl-frontend",
+    "start:backend": "npm run start --workspace=squibl-api",
+    "lint:frontend": "npm run lint --workspace=squibl-frontend",
+    "lint:backend": "npm run lint --workspace=squibl-api",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "typecheck:backend": "npm run build --workspace=squibl-api -- --noEmit",
+    "typecheck:frontend": "npx tsc --noEmit --project frontend/tsconfig.json",
+    "typecheck": "npm run build:packages && npm run typecheck:backend && npm run typecheck:frontend",
+    "clean": "rimraf frontend/.next backend/dist packages/*/dist node_modules frontend/node_modules backend/node_modules"
   },
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Keerthanreddy01/squibl-web.git"

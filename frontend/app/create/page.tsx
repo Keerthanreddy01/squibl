@@ -38,19 +38,22 @@ export default function CreateProjectPage() {
     setError(null);
 
     const stackArray = formData.stack.split(",").map(s => s.trim()).filter(Boolean);
+    const userId = user.id || (user as any).uid;
+    const authorName = user.user_metadata?.full_name || user.user_metadata?.username || user.email?.split("@")[0] || "Builder";
+    const authorAvatar = user.user_metadata?.avatar_url || (user as any).photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`;
 
     const result = await createProject({
-      owner_uid: user.uid,
+      owner_uid: userId,
       name: formData.name,
       tagline: formData.tagline,
       description: formData.description,
       stack: stackArray,
-      team: [user.displayName || user.email?.split("@")[0] || "Builder"], // Solo for now
+      team: [authorName],
       github_url: formData.github_url,
       live_url: formData.live_url,
       status: formData.status,
-      author_name: user.displayName || user.email?.split("@")[0] || "Builder",
-      author_avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`
+      author_name: authorName,
+      author_avatar: authorAvatar
     });
 
     setIsSubmitting(false);
@@ -183,7 +186,7 @@ export default function CreateProjectPage() {
                       value={formData.stack}
                       onChange={(e) => setFormData({...formData, stack: e.target.value})}
                       className="w-full bg-gray-100 dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-black dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
-                      placeholder="e.g. Next.js, Tailwind, Firebase (comma separated)"
+                      placeholder="e.g. Next.js, Tailwind, Supabase (comma separated)"
                     />
                   </div>
 

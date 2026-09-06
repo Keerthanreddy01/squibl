@@ -7,7 +7,8 @@ import Sidebar from "@/components/Sidebar";
 import { Settings, User, Bell, Shield, LogOut, Mail, Key, Palette } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
-import { signOut } from "@/lib/auth";
+import { signOut, resetPasswordForEmail } from "@/lib/auth";
+import { getProfile, updateProfile } from "@/lib/profiles";
 import { sanitizeShortText, sanitizeBio } from "@/lib/sanitize";
 
 export default function SettingsPage() {
@@ -35,14 +36,10 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user) {
       const fetchProfile = async () => {
-        const { db } = await import("@/lib/firebase");
-        const { doc, getDoc } = await import("firebase/firestore");
-        const docRef = doc(db, "builder_profiles", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        const { data } = await getProfile(user.id);
+        if (data) {
           setFormData({
-            fullName: data.full_name || data.display_name || user.displayName || "",
+            fullName: data.full_name || user.user_metadata?.full_name || "",
             bio: data.bio || "",
             location: data.location || "",
             role: data.role || "",
@@ -60,18 +57,13 @@ export default function SettingsPage() {
     setIsSaving(true);
     setMessage(null);
     try {
-      const { db } = await import("@/lib/firebase");
-      const { doc, updateDoc } = await import("firebase/firestore");
-      const docRef = doc(db, "builder_profiles", user.uid);
-
-      // Sanitize before writing to Firestore
-      await updateDoc(docRef, {
+      const { error } = await updateProfile(user.id, {
         full_name: sanitizeShortText(formData.fullName),
         bio:       sanitizeBio(formData.bio),
         location:  sanitizeShortText(formData.location),
         role:      sanitizeShortText(formData.role),
-        updated_at: new Date().toISOString(),
       });
+      if (error) throw error;
       setMessage({ type: 'success', text: 'Profile updated successfully.' });
     } catch (err: any) {
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
@@ -85,9 +77,8 @@ export default function SettingsPage() {
     if (!user?.email) return;
     setPasswordResetLoading(true);
     try {
-      const { getAuth, sendPasswordResetEmail } = await import("firebase/auth");
-      const firebaseAuth = getAuth();
-      await sendPasswordResetEmail(firebaseAuth, user.email);
+      const { error } = await resetPasswordForEmail(user.email);
+      if (error) throw error;
       setPasswordResetSent(true);
       setMessage({ type: 'success', text: `Password reset email sent to ${user.email}. Check your inbox.` });
     } catch (err: any) {
@@ -326,7 +317,7 @@ export default function SettingsPage() {
                     <h4 className="text-sm font-medium text-black dark:text-white">Two-Factor Authentication (2FA)</h4>
                     <p className="text-xs text-black dark:text-white/50">Add an extra layer of security. When enabled, you'll need both your password and a verification code to sign in.</p>
                     <button
-                      onClick={() => setMessage({ type: 'success', text: '2FA setup coming soon! Firebase multi-factor authentication will be available in the next update.' })}
+                      onClick={() => setMessage({ type: 'success', text: '2FA setup coming soon! Multi-factor authentication will be available in the next update.' })}
                       className="px-4 py-2 bg-black/10 dark:bg-white/10 text-black dark:text-white text-xs font-semibold rounded-lg hover:bg-black/20 dark:bg-white/20 transition-all"
                     >
                       Enable 2FA
@@ -337,7 +328,7 @@ export default function SettingsPage() {
                     <h4 className="text-sm font-medium text-black dark:text-white">Active Sessions</h4>
                     <p className="text-xs text-black dark:text-white/50">
                       Signed in as <span className="text-black dark:text-white font-medium">{user.email}</span>.
-                      Firebase manages your session securely with JWT tokens.
+                      Supabase manages your session securely with JWT tokens.
                     </p>
                     <button
                       onClick={handleSignOut}

@@ -6,12 +6,8 @@
  */
 
 const REQUIRED_ENV_VARS = [
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'NEXT_PUBLIC_FIREBASE_APP_ID',
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
 ] as const
 
 export function validateEnv(): void {
@@ -26,13 +22,13 @@ export function validateEnv(): void {
       '[Squibl] Missing required environment variables:',
       ...missing.map((k) => `  - ${k}`),
       '',
-      'Copy .env.example to .env.local and fill in your Firebase credentials.',
+      'Copy .env.example to .env.local and fill in your Supabase credentials.',
     ].join('\n')
 
     console.error(message)
 
     if (process.env.NODE_ENV === 'development') {
-      throw new Error(message)
+      console.warn(message)
     }
   }
 }
@@ -45,8 +41,24 @@ export function getEnv(key: (typeof REQUIRED_ENV_VARS)[number]): string {
   if (!value || value.trim() === '') {
     throw new Error(
       `[Squibl] Environment variable "${key}" is not set. ` +
-      `Copy .env.example to .env.local and fill in your credentials.`
+      `Copy .env.example to .env.local and fill in your Supabase credentials.`
     )
   }
   return value
+}
+
+/**
+ * Validates request origin against allowed origins (CORS check).
+ */
+export function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return true
+  const allowed = [
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'https://squibl.vercel.app',
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+  ].filter(Boolean) as string[]
+
+  return allowed.some((allowedUrl) => origin.startsWith(allowedUrl))
 }

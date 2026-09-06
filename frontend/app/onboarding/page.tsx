@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { db, storage } from "@/lib/firebase";
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { supabase } from "@/lib/supabase/client";
+import { getProfile, updateProfile } from "@/lib/profiles";
+import { uploadAvatar } from "@/lib/storage";
 import { useAuth } from "@/hooks/useAuth";
 import ReflectiveCard from "@/components/ReflectiveCard";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -40,25 +39,21 @@ export default function OnboardingPage() {
     }
 
     const checkOnboarding = async () => {
-      const docRef = doc(db, "builder_profiles", user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().onboarding_completed) {
+      const { data: profile } = await getProfile(user.id);
+      if (profile && profile.onboarding_completed) {
         router.push("/dashboard/home");
+      } else if (profile) {
+        setFormData({
+          fullName: profile.full_name || user.user_metadata?.full_name || "",
+          username: profile.username || user.email?.split("@")[0] || "",
+          bio: profile.bio || "",
+        });
       } else {
-        if (docSnap.exists()) {
-          const d = docSnap.data();
-          setFormData({
-            fullName: d.full_name || user.displayName || "",
-            username: d.username || user.email?.split("@")[0] || "",
-            bio: d.bio || "",
-          });
-        } else {
-          setFormData({
-            fullName: user.displayName || "",
-            username: user.email?.split("@")[0] || "",
-            bio: "",
-          });
-        }
+        setFormData({
+          fullName: user.user_metadata?.full_name || "",
+          username: user.email?.split("@")[0] || "",
+          bio: "",
+        });
       }
     };
     checkOnboarding();
@@ -74,19 +69,18 @@ export default function OnboardingPage() {
     const checkUsername = async () => {
       setIsCheckingUsername(true);
       try {
-        const q = query(
-          collection(db, "builder_profiles"),
-          where("username", "==", formData.username.trim().toLowerCase())
-        );
-        const querySnapshot = await getDocs(q);
-        
+        const { data, error: qError } = await (supabase
+          .from("builder_profiles") as any)
+          .select("id")
+          .eq("username", formData.username.trim().toLowerCase())
+
+        if (qError) throw qError
+
         let taken = false;
-        querySnapshot.forEach((doc) => {
-          if (doc.id !== user?.uid) {
-            taken = true;
-          }
-        });
-        
+        if (data && data.length > 0) {
+          taken = (data as Array<{ id: string }>).some(row => row.id !== user?.id);
+        }
+
         setIsUsernameAvailable(!taken);
       } catch (err) {
         console.error("Error checking username:", err);
@@ -121,31 +115,35 @@ export default function OnboardingPage() {
     try {
       const avatarUrl =
         avatarUploadUrl ||
-        user.photoURL ||
+        user.user_metadata?.avatar_url ||
         "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80";
-      await setDoc(
-        doc(db, "builder_profiles", user.uid),
-        {
-          uid: user.uid,
+
+      const profilePayload = {
+        full_name: formData.fullName || user.user_metadata?.full_name || "Builder",
+        username: formData.username.trim().toLowerCase(),
+        bio: formData.bio || "",
+        avatar_url: avatarUrl,
+        location: "",
+        skills: [],
+        stack: [],
+        experience_level: "Mid",
+        looking_for: [],
+        availability: "Open to collab",
+        github_url: "",
+        twitter_url: "",
+        onboarding_completed: true,
+      };
+
+      const { error: saveError } = await (supabase
+        .from("builder_profiles") as any)
+        .upsert({
+          id: user.id,
           email: user.email,
-          full_name: formData.fullName || user.displayName || "Builder",
-          username: formData.username,
-          bio: formData.bio || "",
-          avatar_url: avatarUrl,
-          location: "",
-          skills: [],
-          stack: [],
-          experience_level: "Mid",
-          looking_for: [],
-          availability: "Open to collab",
-          github_url: "",
-          twitter_url: "",
-          onboarding_completed: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        { merge: true }
-      );
+          ...profilePayload,
+        }, { onConflict: "id" })
+
+      if (saveError) throw saveError
+
       router.push("/dashboard/home");
     } catch (err: any) {
       console.error("Error saving profile:", err);
@@ -165,12 +163,7 @@ export default function OnboardingPage() {
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!storage || !user) {
-      setError("Storage is not configured.");
-      return;
-    }
+    if (!file || !user) return;
 
     if (!AVATAR_TYPES.includes(file.type)) {
       setError("Use a JPG, PNG, or WEBP image.");
@@ -188,12 +181,9 @@ export default function OnboardingPage() {
     setAvatarUploading(true);
 
     try {
-      const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const path = `builder_avatars/${user.uid}/profile_${Date.now()}.${ext}`;
-      const ref = storageRef(storage, path);
-      await uploadBytes(ref, file, { contentType: file.type });
-      const downloadUrl = await getDownloadURL(ref);
-      setAvatarUploadUrl(downloadUrl);
+      const { url, error: uploadErr } = await uploadAvatar(user.id, file);
+      if (uploadErr || !url) throw uploadErr || new Error("Failed to get avatar URL");
+      setAvatarUploadUrl(url);
     } catch (err) {
       console.error("Avatar upload failed:", err);
       setError("Failed to upload image. Try again.");

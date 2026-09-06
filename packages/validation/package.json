@@ -1,0 +1,16 @@
+{
+  "name": "@squibl/validation",
+  "version": "1.0.0",
+  "description": "Squibl shared Zod validation schemas",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@squibl/constants": "*",
+    "@squibl/types": "*",
+    "zod": "^3.22.4"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist"
+  }
+}

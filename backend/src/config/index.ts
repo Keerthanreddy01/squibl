@@ -1,4 +1,7 @@
 import * as dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@squibl/database";
+
 dotenv.config();
 
 export const config = {
@@ -9,21 +12,21 @@ export const config = {
   // CORS
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
 
-  // Firebase client config (for reference / forwarding)
-  firebase: {
-    apiKey: process.env.FIREBASE_API_KEY || "",
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "",
-    projectId: process.env.FIREBASE_PROJECT_ID || "",
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
-    appId: process.env.FIREBASE_APP_ID || "",
-    measurementId: process.env.FIREBASE_MEASUREMENT_ID || "",
-  },
-
-  // Firebase Admin SDK (server-only — never expose to client)
-  firebaseAdmin: {
-    projectId: process.env.FIREBASE_ADMIN_PROJECT_ID || "",
-    privateKey: (process.env.FIREBASE_ADMIN_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-    clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL || "",
+  // Supabase
+  supabase: {
+    url: process.env.SUPABASE_URL || "",
+    anonKey: process.env.SUPABASE_ANON_KEY || "",
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   },
 };
+
+export const supabaseAdmin = createClient<Database>(
+  config.supabase.url || "https://placeholder-project.supabase.co",
+  config.supabase.serviceRoleKey || "placeholder-service-role-key",
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
+);

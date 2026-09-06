@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { LayoutDashboard, Telescope, Rocket, MessageSquare, Bell, User, Settings } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { getProfile } from "@/lib/profiles";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Sidebar({ isSidebarOpen, setIsSidebarOpen, onMobileCreateClick }: any) {
@@ -27,10 +26,12 @@ export default function Sidebar({ isSidebarOpen, setIsSidebarOpen, onMobileCreat
 
   useEffect(() => {
     if (!user) return;
-    const unsubscribe = onSnapshot(doc(db, "builder_profiles", user.uid), (docSnap) => {
-      if (docSnap.exists()) setProfile(docSnap.data());
-    });
-    return () => unsubscribe();
+    const userId = user.id || (user as any).uid;
+    async function loadProfile() {
+      const { data } = await getProfile(userId);
+      if (data) setProfile(data);
+    }
+    loadProfile();
   }, [user]);
 
   const navItems = [
@@ -42,6 +43,8 @@ export default function Sidebar({ isSidebarOpen, setIsSidebarOpen, onMobileCreat
     { key: "profile",       label: "Your Profile", icon: User,            route: "/profile" },
     { key: "settings",      label: "Settings",     icon: Settings,        route: "/settings" },
   ];
+
+  const userAvatar = profile?.avatar_url || profile?.profilePhotoUrl || user?.user_metadata?.avatar_url || null;
 
   return (
     <div className="hidden md:flex relative sticky top-4 left-4 z-[60] h-[calc(100dvh-32px)] shrink-0 w-[80px]">
@@ -150,8 +153,8 @@ export default function Sidebar({ isSidebarOpen, setIsSidebarOpen, onMobileCreat
           <div className={`flex items-center py-4 ${isExpanded ? "px-4" : "px-0 justify-center"}`}>
             <Link href="/profile" aria-label="Open your profile" className="flex items-center gap-3 group/avatar outline-none">
               <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-white/10 group-hover/avatar:ring-gray-400 dark:group-hover/avatar:ring-white/30 transition-all">
-                {profile?.profilePhotoUrl ? (
-                  <img src={profile.profilePhotoUrl} alt="You" className="w-full h-full object-cover" />
+                {userAvatar ? (
+                  <img src={userAvatar} alt="You" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center">
                     <User size={16} className="text-gray-500 dark:text-neutral-400" />
@@ -167,7 +170,7 @@ export default function Sidebar({ isSidebarOpen, setIsSidebarOpen, onMobileCreat
                     className="flex flex-col min-w-0"
                   >
                     <span className="text-[13px] font-semibold text-black dark:text-white truncate max-w-[140px]">
-                      {profile?.name || user?.displayName || "You"}
+                      {profile?.full_name || profile?.name || user?.user_metadata?.full_name || "You"}
                     </span>
                     <span className="text-[11px] text-gray-500 dark:text-neutral-500 truncate max-w-[140px]">
                       {profile?.username ? `@${profile.username}` : user?.email || ""}

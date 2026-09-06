@@ -26,7 +26,7 @@ export default function WelcomePage() {
           Welcome to Squibl
         </h1>
         <p className="text-[#A8A8A8] text-xl">
-          {user.displayName || "Builder"}, your ID card is ready.
+          {user.user_metadata?.full_name || "Builder"}, your ID card is ready.
         </p>
       </div>
 

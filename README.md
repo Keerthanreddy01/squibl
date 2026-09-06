@@ -7,7 +7,7 @@
 [![Live Demo](https://img.shields.io/badge/Live_Demo-squibl.vercel.app-success?style=flat-square&logo=vercel)](https://squibl.vercel.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Firebase](https://img.shields.io/badge/Firebase-12-orange?style=flat-square&logo=firebase)](https://firebase.google.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-emerald?style=flat-square&logo=supabase)](https://supabase.com/)
 [![Express](https://img.shields.io/badge/Express-4-grey?style=flat-square&logo=express)](https://expressjs.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Keerthanreddy01/squibl-web?style=flat-square)](https://github.com/Keerthanreddy01/squibl-web/stargazers)
@@ -20,7 +20,7 @@
 
 Squibl is a platform engineered for software developers, designers, and tech professionals to connect, form teams, and build together. It combines a real-time social feed, professional portfolios, project showcases, and hackathon team-building workflows into a single hub — think LinkedIn meets GitHub meets Devpost.
 
-The project is a **monorepo** with two independently deployable services: a **Next.js 16 frontend** (deployed on Vercel) and an **Express/Node.js backend API** (Firebase-backed).
+The project is a **monorepo** with two independently deployable services: a **Next.js 16 frontend** (deployed on Vercel) and an **Express/Node.js backend API** backed by **Supabase (PostgreSQL, Supabase Auth, Storage, and Realtime)**.
 
 ---
 
@@ -43,9 +43,9 @@ The project is a **monorepo** with two independently deployable services: a **Ne
 - **Developer Profiles** — Portfolios with tech stacks, GitHub metrics, and availability status
 - **Project Showcase** — Dedicated pages to demo and iterate on software projects
 - **Hackathon Teambuilding** — Discover and assemble multidisciplinary teams for competitions
-- **Direct Messaging** — Peer-to-peer conversations between builders
+- **Direct Messaging** — Peer-to-peer conversations between builders powered by Supabase Realtime
 - **Smart Search & Filtering** — Find developers by role, stack, and availability
-- **Security-First** — Input sanitization (DOMPurify), Firestore security rules, rate-limit-ready middleware, security event logging
+- **Security-First** — Strict PostgreSQL Row Level Security (RLS), input sanitization (DOMPurify), Cloudflare Turnstile bot protection, security event logging
 
 ---
 
@@ -59,10 +59,10 @@ The project is a **monorepo** with two independently deployable services: a **Ne
 | **Styling** | Tailwind CSS v4 + shadcn/ui (Radix primitives) |
 | **Animations** | Framer Motion |
 | **Backend Framework** | Express 4 (Node.js ≥ 18) |
-| **Database & Auth** | Firebase v12 (Firestore + Authentication) |
-| **Server SDK** | Firebase Admin SDK (service account) |
+| **Database & Auth** | Supabase (PostgreSQL 15 + Supabase Auth + Supabase Storage) |
+| **Realtime Engine** | Supabase Realtime Channels |
 | **Validation** | Zod |
-| **Security** | Helmet, DOMPurify, custom Firestore rules |
+| **Security** | Helmet, DOMPurify, PostgreSQL RLS policies |
 
 ---
 
@@ -76,23 +76,23 @@ The project is a **monorepo** with two independently deployable services: a **Ne
 │  │  React Pages    │  │  Next.js API Routes              │  │
 │  │  (frontend/app) │  │  (frontend/app/api/*)            │  │
 │  └────────┬────────┘  └───────────────┬──────────────────┘  │
-│           │ Firebase Client SDK        │ Firebase Admin SDK   │
+│           │ Supabase Client SDK        │ Supabase Admin Client│
 └───────────┼───────────────────────────┼─────────────────────┘
             │                           │
             ▼                           ▼
-┌───────────────────────┐   ┌───────────────────────────────┐
-│  Firebase (Google)    │   │  Express API (backend/)       │
-│  ├── Firestore DB     │◄──│  ├── Helmet + CORS            │
-│  ├── Authentication   │   │  ├── Auth middleware (JWT)    │
-│  └── (Storage, FCM)   │   │  ├── Route controllers        │
-└───────────────────────┘   │  └── Zod validation           │
-                            └───────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Supabase (PostgreSQL)                                      │
+│  ├── Database Tables + RLS Policies                         │
+│  ├── Authentication (Email, OAuth)                          │
+│  ├── Storage Buckets (avatars, post-media)                  │
+│  └── Realtime Channels (messages, notifications)            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **How they talk:**
-- The **Next.js frontend** communicates with Firebase directly via the Firebase Web SDK (client-side Firestore queries, Firebase Auth).
-- The **Express backend** communicates with Firebase via the Firebase Admin SDK (bypasses security rules — used for privileged operations like admin reads, waitlist management).
-- The frontend calls the backend at `NEXT_PUBLIC_API_URL` for operations that require server-side authority or cannot be done safely client-side.
+- The **Next.js frontend** communicates with Supabase directly via `@supabase/ssr` and `@supabase/supabase-js` (with Row Level Security enforced via `auth.uid()`).
+- Server routes (like `/api/waitlist`) use the service-role admin client for atomic transactional operations.
+- The **Express backend** communicates with Supabase via the Supabase Node.js client.
 
 ---
 
@@ -102,24 +102,29 @@ The project is a **monorepo** with two independently deployable services: a **Ne
 
 - **Node.js** ≥ 18 ([download](https://nodejs.org/))
 - **npm**, **yarn**, or **pnpm**
-- A **Firebase project** with Authentication and Firestore enabled ([console](https://console.firebase.google.com/))
+- A **Supabase project** ([app.supabase.com](https://app.supabase.com/))
 
-### 1. Clone the Repository
+### 1. Database Setup
+
+Run the migrations in `supabase/migrations/001_initial_schema.sql` in your Supabase SQL Editor:
 
 ```bash
-git clone https://github.com/Keerthanreddy01/squibl-web.git
-cd squibl-web
+# In the Supabase Dashboard:
+# SQL Editor -> New Query -> Paste contents of supabase/migrations/001_initial_schema.sql -> Run
 ```
 
 ### 2. Set Up the Frontend
 
 ```bash
 cd frontend
-npm install           # or pnpm install
+npm install
 cp .env.example .env.local
 ```
 
-Open `frontend/.env.local` and fill in your **Firebase Web SDK** credentials (found in Firebase Console → Project Settings → Your Apps → Web App).
+Open `frontend/.env.local` and fill in your **Supabase** credentials:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 ```bash
 npm run dev           # starts Next.js at http://localhost:3000
@@ -134,7 +139,9 @@ cp .env.example .env
 ```
 
 Open `backend/.env` and fill in:
-- Your **Firebase Admin SDK** credentials (Firebase Console → Project Settings → Service Accounts → Generate new private key)
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `PORT`, `NODE_ENV`, and `FRONTEND_URL`
 
 ```bash
@@ -142,14 +149,6 @@ npm run dev           # starts Express at http://localhost:5000
 ```
 
 > **Health check:** `GET http://localhost:5000/health` → `{ "status": "ok" }`
-
-### 4. Deploy Firestore Rules
-
-If you have the Firebase CLI installed:
-
-```bash
-firebase deploy --only firestore:rules
-```
 
 ---
 
@@ -161,23 +160,24 @@ squibl/                   ← Monorepo root
 │   ├── app/                    ← App Router pages (23 routes)
 │   ├── components/             ← Reusable UI components + shadcn/ui
 │   ├── hooks/                  ← Custom React hooks
-│   ├── lib/                    ← Firebase SDK helpers, sanitization, auth utils
+│   ├── lib/                    ← Supabase client, auth helpers, data services
 │   ├── public/                 ← Static assets (images, icons, demo screenshots)
 │   └── styles/                 ← Additional global CSS layers
 │
 ├── backend/                    ← Express REST API (Node.js)
 │   └── src/
-│       ├── config/             ← Environment variable loading
+│       ├── config/             ← Environment variable loading & Supabase init
 │       ├── controllers/        ← HTTP request handlers
 │       ├── middleware/         ← Auth, error handling, rate limiting
 │       ├── models/             ← TypeScript interfaces + Zod schemas
-│       ├── repositories/       ← Firestore data access layer
+│       ├── repositories/       ← Supabase / database queries
 │       ├── routes/             ← Express routers per feature
 │       ├── services/           ← Business logic layer
 │       └── utils/              ← Shared utilities (response wrapper, pagination)
 │
-├── scripts/                    ← One-off utility and migration scripts
-├── firestore.rules             ← Firestore security rules (deploy via Firebase CLI)
+├── supabase/                   ← Supabase SQL migrations & schema definitions
+│   └── migrations/             ← 001_initial_schema.sql
+├── scripts/                    ← Utility and test scripts
 ├── .env.example                ← Full env template for both frontend + backend
 └── README.md
 ```
@@ -188,7 +188,7 @@ For a detailed description of every file, see [PROJECT_STRUCTURE.md](PROJECT_STR
 
 ## Scripts Reference
 
-Run these from the **monorepo root** (requires `npm install` at root first):
+Run these from the **monorepo root**:
 
 | Command | Description |
 |---|---|
@@ -198,13 +198,6 @@ Run these from the **monorepo root** (requires `npm install` at root first):
 | `npm run build:backend` | Compile TypeScript → `backend/dist/` |
 | `npm run lint` | Lint both frontend and backend |
 | `npm run install:all` | Install deps for root + both sub-packages |
-
-Or run directly from each subfolder (`cd frontend && npm run dev`, etc.).
-
-| Subfolder | Extra Scripts |
-|---|---|
-| `frontend/` | `dev`, `build`, `start`, `lint` |
-| `backend/` | `dev`, `build`, `start`, `lint`, `test` |
 
 ---
 
@@ -218,36 +211,11 @@ We follow **Conventional Commits** for all commit messages.
 <type>(<scope>): <short description>
 
 Types: feat | fix | docs | chore | refactor | style | test | perf
-Scope: frontend | backend | rules | deps | ci  (optional but encouraged)
-
-Examples:
-  feat(frontend): add GitHub OAuth sign-in flow
-  fix(rules): restrict message updates to sender only
-  docs: update README setup instructions
-  chore(deps): upgrade firebase-admin to v14
+Scope: frontend | backend | rules | deps | ci
 ```
-
-### Branch Naming
-
-```
-feature/<short-description>          # new features
-fix/<issue-or-description>           # bug fixes
-chore/<task>                         # maintenance
-docs/<what-you-updated>              # documentation only
-```
-
-### PR process
-
-1. Fork the repository
-2. Create a branch from `main`: `git checkout -b feature/your-feature`
-3. Make changes — **one logical concern per commit**
-4. Push and open a Pull Request targeting `main`
-5. Fill in the PR template; link the relevant issue if applicable
-6. Request a review — PRs require at least one approval before merging
-
-For first contributions, look for issues labeled `good first issue`.
 
 ---
+
 ## License
 
 Distributed under the [MIT License](LICENSE).

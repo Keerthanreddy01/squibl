@@ -137,7 +137,7 @@ export function FeaturesSection() {
   const [activeFeature, setActiveFeature] = useState(0);
   const sectionRef = useRef<HTMLDivElement>(null);
 
-  // ── Live stats from Firebase ──
+  // ── Live stats from Supabase ──
   const { stats, isLoading } = usePlatformStats();
 
   // Map live values to each feature card

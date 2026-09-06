@@ -60,7 +60,6 @@ function BlurWord({ word, trigger }: { word: string; trigger: number }) {
       framesRef.current.forEach(cancelAnimationFrame);
       timersRef.current.forEach(clearTimeout);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
 
   // gradient colours cycling across letter positions
@@ -110,7 +109,7 @@ export function HeroSection() {
   const [isVisible, setIsVisible] = useState(false);
   const [wordIndex, setWordIndex] = useState(0);
 
-  // ── Live stats from Firebase ──
+  // ── Live stats from Supabase ──
   const { stats, isLoading } = usePlatformStats();
 
   useEffect(() => {

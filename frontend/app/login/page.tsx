@@ -3,11 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithGoogle, signInWithEmail, signInWithGithub } from "@/lib/auth";
+import { getProfile } from "@/lib/profiles";
+import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-import { auth } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { AlertCircle, Clock, Eye, EyeOff, Circle, Chrome, Github } from "lucide-react";
+import { AlertCircle, Clock, Eye, EyeOff, Chrome, Github } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── Rate-limiting constants ──────────────────────────────────────────────────
@@ -16,6 +15,7 @@ const LOCKOUT_SECONDS = 30;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -51,14 +51,13 @@ export default function LoginPage() {
         .map(u => u.trim())
         .filter(Boolean);
 
-      if (!adminUids.includes(uid)) {
+      if (adminUids.length > 0 && !adminUids.includes(uid)) {
         router.push("/pre-register");
         return;
       }
 
-      const docRef = doc(db, "builder_profiles", uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().onboarding_completed) {
+      const { data: profile } = await getProfile(uid);
+      if (profile && profile.onboarding_completed) {
         router.push("/dashboard/home");
       } else {
         router.push("/onboarding");
@@ -69,11 +68,10 @@ export default function LoginPage() {
   }, [router]);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user: any) => {
-      if (user) checkAndRedirect(user.uid);
-    });
-    return () => unsubscribe();
-  }, [checkAndRedirect]);
+    if (!authLoading && user) {
+      checkAndRedirect(user.id);
+    }
+  }, [user, authLoading, checkAndRedirect]);
 
   const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
 
@@ -104,7 +102,7 @@ export default function LoginPage() {
         }
       } else if (data?.user) {
         setAttempts(0);
-        await checkAndRedirect(data.user.uid);
+        await checkAndRedirect(data.user.id);
       }
     } catch (err: any) {
       setError("An unexpected error occurred. Please try again.");
@@ -116,7 +114,10 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setError(null);
     try {
-      await signInWithGoogle();
+      const { error: googleError } = await signInWithGoogle();
+      if (googleError) {
+        setError(googleError.message || "Failed to sign in with Google.");
+      }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
     }
@@ -125,7 +126,10 @@ export default function LoginPage() {
   const handleGithubSignIn = async () => {
     setError(null);
     try {
-      await signInWithGithub();
+      const { error: githubError } = await signInWithGithub();
+      if (githubError) {
+        setError(githubError.message || "Failed to sign in with GitHub.");
+      }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with GitHub.");
     }
@@ -289,19 +293,6 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </main>
-  );
-}
-
-// ── Reusable components created at bottom of file ────────────────────────────
-
-function StepItem({ number, text, active }: { number: number; text: string; active?: boolean }) {
-  return (
-    <div className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${active ? 'bg-white text-white dark:text-black border border-black/20 dark:border-white' : 'bg-brand-gray text-black dark:text-white border-none'}`}>
-      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold shrink-0 ${active ? 'bg-white dark:bg-black text-black dark:text-white' : 'bg-black/10 dark:bg-white/10 text-black dark:text-white/40'}`}>
-        {number}
-      </div>
-      <span className="font-medium text-sm">{text}</span>
-    </div>
   );
 }
 

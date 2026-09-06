@@ -1,89 +1,136 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { FieldValue } from 'firebase-admin/firestore'
-import { adminDb } from '@/lib/firebase-admin'
+import { createAdminClient } from '@/lib/supabase/server'
+import { isAllowedOrigin } from '@/lib/env'
 
-const rateLimitMap = new Map<string, number[]>()
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const recent = (rateLimitMap.get(ip) ?? []).filter((time) => now - time < 60 * 60 * 1000)
-  if (recent.length >= 3) return true
-  rateLimitMap.set(ip, [...recent, now])
-  return false
-}
+export const dynamic = 'force-dynamic'
 
 function createRefCode(): string {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  const bytes = crypto.getRandomValues(new Uint8Array(8))
-  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('')
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let result = 'SQ-'
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
 }
 
-async function verifyTurnstile(token: unknown, ip: string): Promise<boolean> {
-  const secret = process.env.TURNSTILE_SECRET_KEY
-  if (!secret) return process.env.NODE_ENV !== 'production'
-  if (typeof token !== 'string' || !token) return false
+function isValidEmail(email: unknown): email is string {
+  if (typeof email !== 'string') return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+}
 
-  const formData = new FormData()
-  formData.set('secret', secret)
-  formData.set('response', token)
-  formData.set('remoteip', ip)
+async function verifyTurnstile(token: string | undefined, ip: string | null): Promise<boolean> {
+  const secretKey = process.env.TURNSTILE_SECRET_KEY
+  if (!secretKey) return true // dev fallback if not configured
+
+  if (!token) return false
+
   try {
-    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST', body: formData,
+    const formData = new URLSearchParams()
+    formData.append('secret', secretKey)
+    formData.append('response', token)
+    if (ip) formData.append('remoteip', ip)
+
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: formData,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     })
-    return response.ok && Boolean((await response.json()).success)
+
+    const data = await res.json()
+    return !!data.success
   } catch {
     return false
   }
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  if (isRateLimited(ip)) {
-    return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 })
-  }
-  const db = adminDb
-  if (!db) {
-    return NextResponse.json({ error: 'Waitlist service is unavailable.' }, { status: 503 })
+  const origin = req.headers.get('origin')
+  if (origin && !isAllowedOrigin(origin)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await req.json().catch(() => null)
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 })
+  }
+
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
   const platform = body?.platform
-  const referredBy = typeof body?.referredBy === 'string' ? body.referredBy.slice(0, 32) : null
-  if (!EMAIL_PATTERN.test(email) || !['android', 'ios', 'both'].includes(platform)) {
+  const referredBy = typeof body?.referredBy === 'string' ? body.referredBy.trim().toUpperCase() : null
+
+  if (!isValidEmail(email) || !['android', 'ios', 'both'].includes(platform)) {
     return NextResponse.json({ error: 'Invalid waitlist details.' }, { status: 400 })
   }
-  if (!await verifyTurnstile(body?.turnstileToken, ip)) {
+
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || null
+  if (!(await verifyTurnstile(body?.turnstileToken, ip))) {
     return NextResponse.json({ error: 'Security check failed. Please refresh and try again.' }, { status: 403 })
   }
 
   try {
-    const result = await db.runTransaction(async (transaction) => {
-      const waitlist = db.collection('app_waitlist')
-      const existing = await transaction.get(waitlist.where('email', '==', email).limit(1))
-      if (!existing.empty) {
-        const record = existing.docs[0].data()
-        return { position: record.position, refCode: record.ref_code, existing: true }
-      }
+    const supabaseAdmin = createAdminClient()
 
-      const counterRef = db.collection('_system').doc('waitlist')
-      const counter = await transaction.get(counterRef)
-      const position = (counter.data()?.count ?? 0) + 1
-      const refCode = createRefCode()
-      transaction.set(waitlist.doc(), {
-        email, platform, referred_by: referredBy, position, ref_code: refCode,
-        joined_at: FieldValue.serverTimestamp(),
+    // Check if email already exists
+    const { data: existing } = await (supabaseAdmin.from('app_waitlist') as any)
+      .select('position, ref_code')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        position: existing.position,
+        refCode: existing.ref_code,
+        message: 'Already registered!',
       })
-      transaction.set(counterRef, { count: position }, { merge: true })
-      return { position, refCode, existing: false }
-    })
+    }
+
+    const refCode = createRefCode()
+
+    // Insert new waitlist row
+    const { data: inserted, error: insertError } = await (supabaseAdmin.from('app_waitlist') as any)
+      .insert({
+        email,
+        platform,
+        referred_by: referredBy,
+        ref_code: refCode,
+      })
+      .select('position, ref_code')
+      .single()
+
+    if (insertError) {
+      // Handle potential race condition on unique email constraint
+      if (insertError.code === '23505') {
+        const { data: raceRecord } = await (supabaseAdmin.from('app_waitlist') as any)
+          .select('position, ref_code')
+          .eq('email', email)
+          .single()
+
+        if (raceRecord) {
+          return NextResponse.json({
+            success: true,
+            position: raceRecord.position,
+            refCode: raceRecord.ref_code,
+            message: 'Already registered!',
+          })
+        }
+      }
+      throw insertError
+    }
+
     return NextResponse.json({
-      success: true, position: result.position, refCode: result.refCode,
-      message: result.existing ? 'Already registered!' : 'Pre-registered successfully!',
+      success: true,
+      position: inserted?.position || 1,
+      refCode: inserted?.ref_code || refCode,
+      message: 'Pre-registered successfully!',
     })
-  } catch {
-    return NextResponse.json({ error: 'Unable to join the waitlist. Please try again.' }, { status: 500 })
+  } catch (err: any) {
+    console.error('Waitlist registration failed:', err)
+    return NextResponse.json(
+      { error: err?.message || 'Failed to save waitlist reservation.' },
+      { status: 500 }
+    )
   }
 }

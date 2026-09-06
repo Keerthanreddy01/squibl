@@ -11,7 +11,7 @@ export function CtaSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  // ── Live stats from Firebase ──
+  // ── Live stats from Supabase ──
   const { stats, isLoading } = usePlatformStats();
 
   useEffect(() => {

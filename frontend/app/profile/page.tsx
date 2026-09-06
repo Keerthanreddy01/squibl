@@ -3,9 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { getUserStats } from "@/lib/profiles";
+import { getProfile, getUserStats } from "@/lib/profiles";
 import Sidebar from "@/components/Sidebar";
 import { Settings, MapPin, Briefcase, Rocket, Edit3, Share, Plus } from "lucide-react";
 import { motion } from "framer-motion";
@@ -29,13 +27,12 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       const fetchProfile = async () => {
-        const docRef = doc(db, "builder_profiles", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setProfile(docSnap.data());
+        const { data: profData } = await getProfile(user.id);
+        if (profData) {
+          setProfile(profData);
         }
         
-        const { data: userStats } = await getUserStats(user.uid);
+        const { data: userStats } = await getUserStats(user.id);
         if (userStats) {
           setStats({ projects: userStats.projects });
         }
@@ -114,7 +111,7 @@ export default function ProfilePage() {
                   {/* Avatar */}
                   <div className="w-[120px] h-[120px] rounded-full border-4 border-[#0a0a0a] overflow-hidden bg-gray-100 dark:bg-[#111] shadow-xl shrink-0 relative z-10">
                     <img 
-                      src={profile?.avatar_url || user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
+                      src={profile?.avatar_url || user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
                       alt="Avatar" 
                       className="w-full h-full object-cover"
                     />
@@ -122,7 +119,7 @@ export default function ProfilePage() {
                   
                   {/* Action Buttons */}
                   <div className="flex items-center gap-3 self-start md:self-end">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white/[0.05] border border-gray-200 dark:border-white/[0.1] hover:bg-white/[0.1] rounded-[12px] text-[13px] font-semibold transition-all">
+                    <button onClick={() => router.push("/settings")} className="flex items-center gap-2 px-4 py-2 bg-white/[0.05] border border-gray-200 dark:border-white/[0.1] hover:bg-white/[0.1] rounded-[12px] text-[13px] font-semibold transition-all">
                       <Edit3 className="w-4 h-4" /> Edit Profile
                     </button>
                     <button className="flex items-center gap-2 px-4 py-2 bg-white text-white dark:text-black hover:bg-gray-200 rounded-[12px] text-[13px] font-bold transition-all">
@@ -134,13 +131,13 @@ export default function ProfilePage() {
                 {/* Info */}
                 <div className="mb-8">
                   <h1 className="text-[28px] font-bold tracking-tight text-black dark:text-white flex items-center gap-2 mb-1">
-                    {profile?.display_name || user.displayName || "Builder"}
+                    {profile?.full_name || profile?.display_name || user.user_metadata?.full_name || "Builder"}
                     <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
                       <svg className="w-3 h-3 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
                   </h1>
                   <p className="text-[#A8A8A8] text-[15px] mb-4">
-                    @{user.email?.split('@')[0] || "builder"}
+                    @{profile?.username || user.email?.split('@')[0] || "builder"}
                   </p>
 
                   <div className="space-y-2 mb-6">
@@ -210,7 +207,7 @@ export default function ProfilePage() {
               <p className="text-[#A8A8A8] text-[14px] leading-relaxed max-w-sm mb-6">
                 Share your first project, post an update, or showcase your work to the community.
               </p>
-              <button className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-black dark:text-white rounded-full text-[14px] font-bold transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+              <button onClick={() => router.push("/create")} className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white dark:text-white rounded-full text-[14px] font-bold transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)]">
                 <Plus className="w-4 h-4" /> Create New
               </button>
             </motion.div>

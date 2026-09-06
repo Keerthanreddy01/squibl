@@ -6,9 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { getProfile } from "@/lib/profiles";
 
 const navLinks = [
   { name: "ABOUT US",      href: "#about"         },
@@ -43,9 +41,9 @@ export function Navigation() {
       return;
     }
     try {
-      const docRef = doc(db, "builder_profiles", user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().onboarding_completed) {
+      const userId = user.id || (user as any).uid;
+      const { data: profile } = await getProfile(userId);
+      if (profile && profile.onboarding_completed) {
         router.push("/dashboard/home");
       } else {
         router.push("/onboarding");
@@ -130,7 +128,6 @@ export function Navigation() {
                 <button
                   onClick={async () => {
                     await signOut()
-                    // After sign-out, replace history with landing page
                     router.replace('/')
                   }}
                   className="w-8 h-8 rounded-full 
@@ -138,7 +135,7 @@ export function Navigation() {
                   justify-center text-white text-sm
                   font-bold"
                 >
-                  {user.email?.[0].toUpperCase()}
+                  {user.email?.[0]?.toUpperCase() || "U"}
                 </button>
               </div>
             )}

@@ -2,7 +2,7 @@
   "name": "squibl-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "Squibl — Next.js 16 frontend (App Router, TypeScript, Firebase, Tailwind CSS v4)",
+  "description": "Squibl — Next.js 16 frontend (App Router, TypeScript, Supabase, Tailwind CSS v4)",
   "engines": {
     "node": ">=18"
   },
@@ -13,6 +13,10 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@squibl/constants": "*",
+    "@squibl/database": "*",
+    "@squibl/types": "*",
+    "@squibl/validation": "*",
     "@emailjs/browser": "^4.4.1",
     "@fontsource/dm-serif-display": "^5.2.8",
     "@gsap/react": "^2.1.2",
@@ -58,8 +62,8 @@
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
-    "firebase": "^12.13.0",
-    "firebase-admin": "^14.0.0",
+    "@supabase/ssr": "^0.6.0",
+    "@supabase/supabase-js": "^2.49.1",
     "framer-motion": "^12.40.0",
     "geist": "1.7.0",
     "gsap": "^3.15.0",

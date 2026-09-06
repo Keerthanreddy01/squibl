@@ -1,4 +1,3 @@
-﻿# config
+# config/
 
-App-wide configuration, environment variable loading, and Firebase Admin SDK initialization.
-
+App-wide configuration, environment variable loading, and Supabase client initialization.

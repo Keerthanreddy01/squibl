@@ -1,4 +1,3 @@
-// Complete replacement for frontend/app/messages/page.tsx
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -12,12 +11,11 @@ import {
   createChat, 
   markConversationAsRead
 } from "@/lib/chats";
+import { getAllProfiles } from "@/lib/profiles";
 import { 
   Search, SlidersHorizontal, Plus, ArrowLeft, MoreHorizontal,
   Phone, Mic, Send, Smile, Lock, XCircle, Check, Video, ChevronDown
 } from "lucide-react";
-import { collection, query, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -34,7 +32,7 @@ export default function MessagesPage() {
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   
-  const currentUid = user?.uid || "";
+  const currentUid = user?.id || (user as any)?.uid || "";
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -57,15 +55,18 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, "builder_profiles"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cache: Record<string, any> = {};
-      snapshot.docs.forEach((doc) => {
-        cache[doc.id] = { id: doc.id, ...doc.data() };
-      });
-      setProfiles(cache);
-    });
-    return () => unsubscribe();
+    async function loadProfiles() {
+      const { data } = await getAllProfiles();
+      if (data) {
+        const cache: Record<string, any> = {};
+        data.forEach((p) => {
+          const id = p.id || p.uid || "";
+          if (id) cache[id] = { id, ...p };
+        });
+        setProfiles(cache);
+      }
+    }
+    loadProfiles();
   }, [user]);
 
   useEffect(() => {
@@ -112,13 +113,17 @@ export default function MessagesPage() {
 
   const formatMessageTime = (timestamp: any) => {
     if (!timestamp) return "Just now";
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
-    if (diffMins < 1) return "Now";
-    if (diffMins < 60) return `${diffMins}m`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h`;
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
+      if (diffMins < 1) return "Now";
+      if (diffMins < 60) return `${diffMins}m`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours}h`;
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    } catch {
+      return "Now";
+    }
   };
 
   const filteredChats = chats.filter(chat => {
@@ -162,16 +167,16 @@ export default function MessagesPage() {
             lineHeight: '1.5'
           }}
         >
-          {/* Overall messages page wrapper - constrained max-width 1200px, centered */}
+          {/* Overall messages page wrapper */}
           <div className="flex w-full h-full bg-[#000000] relative z-10">
           
           {/* COLUMN 1: CHAT THREADS LIST (Responsive) */}
           <div className={`w-full md:w-[350px] md:min-w-[350px] border-r border-[#2f3336] flex-col h-full shrink-0 bg-[#000000] ${activeChatId ? 'hidden md:flex' : 'flex'}`}>
-            {/* Header of left sidebar (X style) */}
+            {/* Header of left sidebar */}
             <div className="flex items-center justify-between px-4 py-3 bg-[#000000] border-b border-[#2f3336]">
               <div className="flex items-center gap-3">
                 <h1 className="text-[20px] font-extrabold text-black dark:text-white tracking-tight">Chat</h1>
-                {/* All Filter Pill (X style) */}
+                {/* All Filter Pill */}
                 <div className="flex items-center gap-1.5 px-4 py-1 border border-[#536471] rounded-full text-[14px] font-bold text-black dark:text-white hover:bg-black/10 dark:bg-white/10 cursor-pointer transition-colors bg-transparent">
                   <span>All</span>
                   <ChevronDown className="w-4 h-4 text-[#71767b]" />
@@ -192,7 +197,7 @@ export default function MessagesPage() {
               </div>
             </div>
 
-            {/* Search Input (X style - 44px height) */}
+            {/* Search Input */}
             <div className="relative group px-4 py-2 border-b border-[#2f3336]">
               <input
                 type="text"
@@ -204,7 +209,7 @@ export default function MessagesPage() {
               <Search className="w-5 h-5 text-[#71767b] absolute left-8 top-5" />
             </div>
 
-            {/* Conversations list (X style - 72px row height, 56px avatar) */}
+            {/* Conversations list */}
             <div className="flex-1 overflow-y-auto no-scrollbar pb-20 md:pb-6 bg-[#000000]">
               {filteredChats.map(chat => {
                 const otherUid = chat.participants.find((p: string) => p !== currentUid);
@@ -263,7 +268,7 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* COLUMN 2: ACTIVE CONVERSATION PANE (Responsive) */}
+          {/* COLUMN 2: ACTIVE CONVERSATION PANE */}
           <div className={`flex-1 border-r border-[#2f3336] flex-col h-full bg-[#000000] relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
             {!activeChatId ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 pb-20 select-none z-10 bg-[#000000]">
@@ -274,7 +279,7 @@ export default function MessagesPage() {
               </div>
             ) : (
               <>
-                {/* Header (Glassmorphic Top Bar) */}
+                {/* Header */}
                 <div 
                   className="h-[60px] flex items-center justify-between px-6 shrink-0 z-10"
                   style={{
@@ -320,10 +325,8 @@ export default function MessagesPage() {
                   </div>
                 </div>
 
-                {/* Message History Feed (fills full height, auto scroll) */}
+                {/* Message History Feed */}
                 <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 no-scrollbar bg-transparent z-10 relative">
-                  
-                  {/* Encryption Notice shown ONCE at the very top of history */}
                   <div className="py-4 text-center flex items-center justify-center select-none text-[13px] text-[#71767b] w-full">
                     <span className="flex items-center gap-1.5 font-normal">
                       <Lock className="w-3.5 h-3.5" />
@@ -332,21 +335,19 @@ export default function MessagesPage() {
                   </div>
 
                   {messages.map((msg, i) => {
-                    const isSentByMe = msg.senderId === currentUid;
-                    const timeStr = formatMessageTime(msg.timestamp);
+                    const isSentByMe = (msg.senderId || msg.sender_id) === currentUid;
+                    const timeStr = formatMessageTime(msg.timestamp || msg.created_at);
 
                     return (
                       <div key={msg.id || i} className={`flex flex-col max-w-[70%] ${isSentByMe ? 'items-end self-end' : 'items-start self-start'}`}>
-                        {/* Message Bubble (X style flat bubbles) */}
                         <div className={`px-4 py-2.5 text-[15px] leading-normal break-words transition-all ${
                           isSentByMe 
                             ? 'bg-[#1d9bf0] text-black dark:text-white rounded-[18px]' 
                             : 'bg-[#1e2328] text-black dark:text-white rounded-[18px]'
                         }`}>
-                          {msg.content}
+                          {msg.content || msg.text}
                         </div>
                         
-                        {/* Message Meta (Below Bubble in #71767b) */}
                         <span className="text-[13px] text-[#71767b] mt-1 flex items-center gap-1 select-none">
                           {timeStr}
                           {isSentByMe && (
@@ -361,7 +362,7 @@ export default function MessagesPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Message Composer (Glassmorphic Bottom Bar) */}
+                {/* Message Composer */}
                 <div 
                   className="p-4 pb-20 md:pb-4 shrink-0 z-10 bg-[#000000]"
                   style={{
@@ -374,7 +375,6 @@ export default function MessagesPage() {
                   }}
                 >
                   <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    {/* Left Controls */}
                     <div className="flex items-center gap-1 text-[#1d9bf0] shrink-0">
                       <button type="button" className="p-2 hover:bg-[#1d9bf0]/10 rounded-full transition-colors" title="Add media">
                         <Plus className="w-5 h-5 text-[#1d9bf0]" />
@@ -387,7 +387,6 @@ export default function MessagesPage() {
                       </button>
                     </div>
 
-                    {/* Text Input Capsule (X style pill shape) */}
                     <div className="flex-1 bg-[#202327] rounded-full px-4 py-2 flex items-center gap-2">
                       <input
                         type="text"
@@ -420,7 +419,6 @@ export default function MessagesPage() {
       {isComposeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-black/60 backdrop-blur-xs p-4">
           <div className="bg-[#000000] border border-[#2f3336] w-full max-w-md rounded-2xl flex flex-col max-h-[80vh]">
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-[#2f3336]">
               <h2 className="text-xl font-bold text-black dark:text-white">New Message</h2>
               <button 
@@ -431,7 +429,6 @@ export default function MessagesPage() {
               </button>
             </div>
             
-            {/* Search profiles */}
             <div className="p-4 border-b border-[#2f3336]">
               <div className="relative">
                 <input
@@ -445,7 +442,6 @@ export default function MessagesPage() {
               </div>
             </div>
             
-            {/* User list */}
             <div className="flex-1 overflow-y-auto p-2">
               {Object.values(profiles)
                 .filter((profile: any) => {
@@ -460,7 +456,6 @@ export default function MessagesPage() {
                     key={profile.id}
                     onClick={async () => {
                       setIsComposeOpen(false);
-                      // Find if a conversation already exists
                       const existingChat = chats.find(c => c.participants.includes(profile.id));
                       if (existingChat) {
                         setActiveChatId(existingChat.id);

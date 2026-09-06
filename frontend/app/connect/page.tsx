@@ -3,17 +3,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "@/components/Sidebar";
-import { db } from "@/lib/firebase";
-import { collection, query, getDocs, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { getAllProfiles, getProfile, connectToBuilder, disconnectFromBuilder } from "@/lib/profiles";
 import { UserPlus, UserCheck, Loader2, Menu, Sparkles } from "lucide-react";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 export default function ConnectPage() {
   const { user } = useAuth();
   const [builders, setBuilders] = useState<any[]>([]);
-  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
@@ -22,11 +19,9 @@ export default function ConnectPage() {
     async function loadData() {
       if (!user) return;
       try {
+        const userId = user.id || (user as any).uid;
         // Fetch current user's profile to get 'following' list
-        const meRef = doc(db, "builder_profiles", user.uid);
-        const meSnap = await getDoc(meRef);
-        const meData = meSnap.data();
-        setCurrentUserProfile(meData);
+        const { data: meData } = await getProfile(userId);
         
         const myFollowing = meData?.following || [];
         const initialMap: Record<string, boolean> = {};
@@ -36,11 +31,8 @@ export default function ConnectPage() {
         setFollowingMap(initialMap);
 
         // Fetch all builders
-        const q = query(collection(db, "builder_profiles"));
-        const snapshot = await getDocs(q);
-        const loadedBuilders = snapshot.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(b => b.id !== user.uid); // Exclude self
+        const { data: allBuilders } = await getAllProfiles();
+        const loadedBuilders = (allBuilders || []).filter(b => b.id !== userId && b.uid !== userId);
         
         setBuilders(loadedBuilders);
       } catch (error) {
@@ -54,9 +46,10 @@ export default function ConnectPage() {
 
   const handleToggleFollow = async (targetUserId: string, isFollowing: boolean) => {
     if (!user) return;
+    const userId = user.id || (user as any).uid;
 
     // Security: prevent self-follow
-    if (targetUserId === user.uid) {
+    if (targetUserId === userId) {
       toast.error("You can't follow yourself.");
       return;
     }
@@ -68,18 +61,11 @@ export default function ConnectPage() {
     }));
 
     try {
-      const meRef = doc(db, "builder_profiles", user.uid);
-      const targetRef = doc(db, "builder_profiles", targetUserId);
-
       if (isFollowing) {
-        // Unfollow
-        await updateDoc(meRef, { following: arrayRemove(targetUserId) });
-        await updateDoc(targetRef, { followers: arrayRemove(user.uid) });
+        await disconnectFromBuilder(userId, targetUserId);
         toast.success("Unfollowed.");
       } else {
-        // Follow
-        await updateDoc(meRef, { following: arrayUnion(targetUserId) });
-        await updateDoc(targetRef, { followers: arrayUnion(user.uid) });
+        await connectToBuilder(userId, targetUserId);
         toast.success("You're now connected!");
       }
     } catch (error) {
@@ -121,9 +107,9 @@ export default function ConnectPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {builders.map((builder) => {
-                  const isFollowing = !!followingMap[builder.id];
+                  const bId = builder.id || builder.uid;
+                  const isFollowing = !!followingMap[bId];
                   
-                  // Mock stacks fallback if empty
                   const mockStacks = [
                     ["React", "Node.js"],
                     ["Python", "Django"],
@@ -131,22 +117,22 @@ export default function ConnectPage() {
                     ["Solidity", "Web3"],
                     ["UI/UX", "Figma"]
                   ];
-                  const seedIdx = builder.id.charCodeAt(0) % mockStacks.length;
+                  const seedIdx = bId ? bId.charCodeAt(0) % mockStacks.length : 0;
                   const skills = builder.skills && builder.skills.length > 0 ? builder.skills : mockStacks[seedIdx];
 
                   return (
                     <div 
-                      key={builder.id} 
+                      key={bId} 
                       className="group bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-5 transition-all duration-300 hover:bg-[#0f0f0f] hover:border-gray-200 dark:border-white/[0.15] flex flex-col"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <img 
-                          src={builder.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${builder.id}`} 
+                          src={builder.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${bId}`} 
                           alt={builder.full_name || "Builder"} 
                           className="w-14 h-14 rounded-full border border-gray-200 dark:border-white/10 object-cover"
                         />
                         <button
-                          onClick={() => handleToggleFollow(builder.id, isFollowing)}
+                          onClick={() => handleToggleFollow(bId, isFollowing)}
                           className={`px-4 py-1.5 rounded-full font-bold text-[13px] transition-all cursor-pointer ${
                             isFollowing 
                               ? "bg-transparent border border-gray-200 dark:border-white/20 text-black dark:text-white hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10" 
@@ -159,7 +145,7 @@ export default function ConnectPage() {
                       
                       <div className="mb-3">
                         <h3 className="font-bold text-[16px] text-black dark:text-white leading-tight">{builder.full_name || "Anonymous Builder"}</h3>
-                        <p className="text-[14px] text-gray-400 dark:text-neutral-500">@{builder.username || builder.id.substring(0, 8)}</p>
+                        <p className="text-[14px] text-gray-400 dark:text-neutral-500">@{builder.username || bId.substring(0, 8)}</p>
                       </div>
                       
                       <p className="text-[14px] text-gray-600 dark:text-neutral-300 mb-5 line-clamp-2 min-h-[42px] leading-relaxed">

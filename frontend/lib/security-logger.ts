@@ -2,17 +2,20 @@
  * lib/security-logger.ts
  * Lightweight security audit trail for Squibl.
  *
- * Writes auth events to Firestore `auth_events` collection so administrators
- * can detect suspicious patterns (repeated failed logins, unusual sign-in
- * locations, etc.) without storing any sensitive data.
+ * Writes auth events to the Supabase `auth_events` table so administrators
+ * can detect suspicious patterns (repeated failed logins, etc.) without storing
+ * any sensitive passwords or tokens.
  *
- * Each event document contains ONLY:
- *  - uid            (who)
+ * Each event row contains:
+ *  - user_id        (who)
  *  - event          (what happened)
  *  - method         (how: email | google | github)
- *  - timestamp      (when)
- *  - userAgent      (browser fingerprint — no PII)
+ *  - created_at     (when)
+ *  - user_agent     (browser fingerprint — no PII)
+ *  - metadata       (non-sensitive context)
  */
+
+import { supabase } from './supabase/client'
 
 export type AuthEventType =
   | 'sign_in_success'
@@ -26,36 +29,27 @@ export interface AuthEventPayload {
   uid?: string          // undefined on failed sign-in (user not authenticated)
   event: AuthEventType
   method?: 'email' | 'google' | 'github'
-  metadata?: Record<string, string | number | boolean>
+  metadata?: Record<string, string | number | boolean | null>
 }
 
 /**
- * Logs a security-relevant event to Firestore.
- * Fails silently — logging errors should never break the auth flow.
+ * Logs a security-relevant event to Supabase.
+ * Fails silently — logging errors should never block auth or user experience.
  */
 export async function logSecurityEvent(payload: AuthEventPayload): Promise<void> {
   try {
-    const { db } = await import('./firebase')
-    if (!db) return // Firebase not initialized (e.g., missing env vars in dev)
-
-    const { auth } = await import('./firebase')
-    if (!payload.uid || auth?.currentUser?.uid !== payload.uid) return
-
-    const { collection, addDoc } = await import('firebase/firestore')
-
     const entry = {
-      uid:       payload.uid ?? 'unauthenticated',
-      event:     payload.event,
-      method:    payload.method ?? 'unknown',
-      timestamp: new Date().toISOString(),
-      userAgent: typeof navigator !== 'undefined'
-        ? navigator.userAgent.slice(0, 200) // cap length
+      user_id:    payload.uid ?? null,
+      event:      payload.event,
+      method:     payload.method ?? 'unknown',
+      user_agent: typeof navigator !== 'undefined'
+        ? navigator.userAgent.slice(0, 200)
         : 'server',
-      ...(payload.metadata ?? {}),
+      metadata:   (payload.metadata ?? {}) as any,
     }
 
-    await addDoc(collection(db, 'auth_events'), entry)
+    await (supabase.from('auth_events') as any).insert(entry)
   } catch {
-    // Never throw — security logging is a non-critical side-effect
+    // Non-critical audit log — never throw
   }
 }

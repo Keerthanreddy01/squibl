@@ -1,0 +1,11 @@
+{
+  "name": "@squibl/constants",
+  "version": "1.0.0",
+  "description": "Squibl shared constants and enums",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist"
+  }
+}

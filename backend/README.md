@@ -1,17 +1,17 @@
 # Backend — Squibl API
 
-Express + TypeScript REST API that connects the Next.js frontend to Firebase/Firestore.
+Express + TypeScript REST API configured for Supabase integration.
 
 ## Folder Structure
 
 ```
 backend/
 ├── src/
-│   ├── config/          # App config, env vars, Firebase Admin SDK init
+│   ├── config/          # App config, env vars, Supabase JS client init
 │   ├── controllers/     # Route handlers (thin layer — call services)
 │   ├── middleware/      # Auth guards, error handler, rate limiter, logging
 │   ├── models/          # TypeScript interfaces / Zod schemas for data shapes
-│   ├── repositories/    # Direct Firestore read/write queries (data access layer)
+│   ├── repositories/    # Direct database queries (data access layer)
 │   ├── routes/          # Express routers — map URL paths → controllers
 │   ├── services/        # Business logic (call repositories, apply rules)
 │   ├── types/           # Shared TypeScript types & enums

@@ -1,48 +1,116 @@
-import { db } from "./firebase";
-import { collection, addDoc, query, orderBy, where, onSnapshot, updateDoc, doc } from "firebase/firestore";
+import { supabase } from './supabase/client'
 
-export type NotificationType = "like" | "comment" | "follow";
+import type { NotificationType, NotificationData } from '@squibl/types'
+export type { NotificationType, NotificationData } from '@squibl/types'
 
-export interface NotificationData {
-  userId: string; // The person receiving the notification
-  actorId: string; // The person who did the action
-  actorName: string;
-  actorAvatar: string;
-  type: NotificationType;
-  targetId?: string; // The ID of the post/project
-  content?: string; // e.g., snippet of the comment
-  read: boolean;
-}
-
-export async function createNotification(data: Omit<NotificationData, "read">) {
+export async function createNotification(data: Omit<NotificationData, 'read'>) {
   try {
-    // Prevent self-notifications
-    if (data.userId === data.actorId) return;
+    if (data.userId === data.actorId) return
 
-    await addDoc(collection(db, "notifications"), {
-      ...data,
-      read: false,
-      created_at: new Date().toISOString(),
-    });
+    const { error } = await (supabase
+      .from('notifications') as any)
+      .insert({
+        user_id: data.userId,
+        actor_id: data.actorId,
+        actor_name: data.actorName,
+        actor_avatar: data.actorAvatar || null,
+        type: data.type,
+        target_id: data.targetId || null,
+        content: data.content || null,
+        read: false,
+      })
+
+    if (error) throw error
   } catch (err: any) {
-    console.error("Failed to create notification:", err);
+    console.error('[Notifications] Failed to create notification:', err)
   }
 }
 
-export function subscribeToNotifications(userId: string, callback: (notifications: any[]) => void) {
-  const q = query(
-    collection(db, "notifications"),
-    where("userId", "==", userId),
-    orderBy("created_at", "desc")
-  );
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-  });
+export function subscribeToNotifications(userId: string, callback: (notifications: NotificationData[]) => void) {
+  let isSubscribed = true
+  let currentList: NotificationData[] = []
+
+  async function fetchNotifications() {
+    try {
+      const { data, error } = await (supabase
+        .from('notifications') as any)
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error || !isSubscribed) return
+
+      currentList = ((data || []) as any[]).map(n => ({
+        id: n.id,
+        userId: n.user_id,
+        actorId: n.actor_id,
+        actorName: n.actor_name,
+        actorAvatar: n.actor_avatar,
+        type: n.type as NotificationType,
+        targetId: n.target_id,
+        content: n.content,
+        read: n.read,
+        created_at: n.created_at,
+      }))
+
+      callback(currentList)
+    } catch (err) {
+      console.error('[Notifications] fetch error:', err)
+    }
+  }
+
+  fetchNotifications()
+
+  // Realtime subscription for incoming notifications
+  const channel = supabase
+    .channel(`user-notifications-${userId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+      (payload) => {
+        if (!isSubscribed) return
+        const n = payload.new as any
+        const formatted: NotificationData = {
+          id: n.id,
+          userId: n.user_id,
+          actorId: n.actor_id,
+          actorName: n.actor_name,
+          actorAvatar: n.actor_avatar,
+          type: n.type as NotificationType,
+          targetId: n.target_id,
+          content: n.content,
+          read: n.read,
+          created_at: n.created_at,
+        }
+
+        currentList = [formatted, ...currentList.filter(item => item.id !== formatted.id)]
+        callback(currentList)
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+      (payload) => {
+        if (!isSubscribed) return
+        const updated = payload.new as any
+        currentList = currentList.map(item => item.id === updated.id ? { ...item, read: updated.read } : item)
+        callback(currentList)
+      }
+    )
+    .subscribe()
+
+  return () => {
+    isSubscribed = false
+    supabase.removeChannel(channel)
+  }
 }
 
 export async function markNotificationAsRead(id: string) {
   try {
-    await updateDoc(doc(db, "notifications", id), { read: true });
+    await (supabase
+      .from('notifications') as any)
+      .update({ read: true })
+      .eq('id', id)
   } catch (err) {
     // Silent fail
   }

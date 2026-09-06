@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "@/components/Sidebar";
 import RightSidebar from "@/components/dashboard/RightSidebar";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, limit, onSnapshot, doc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs } from "firebase/firestore";
+import { getAllProfiles, getProfile, connectToBuilder, disconnectFromBuilder } from "@/lib/profiles";
+import { getAllPosts } from "@/lib/posts";
 import {
-  Search, TrendingUp, Users, Sparkles, Hash, Heart, MessageCircle,
+  Search, TrendingUp, Users, Sparkles, Heart, MessageCircle,
   Repeat2, Share, Verified, Flame, Zap, Code2, Globe, Rocket,
   ChevronRight, MoreHorizontal, BookmarkPlus
 } from "lucide-react";
@@ -25,8 +25,6 @@ const TRENDING_TOPICS = [
   { tag: "typescript", posts: "31.5K", category: "Language", hot: false },
   { tag: "opensource", posts: "44.1K", category: "Community", hot: true },
 ];
-
-
 
 const CATEGORIES = [
   { label: "For You", icon: Sparkles, active: true },
@@ -62,10 +60,7 @@ export default function ExplorePage() {
     async function loadData() {
       if (!user) return;
       try {
-        const meRef = doc(db, "builder_profiles", user.uid);
-        const meSnap = await getDoc(meRef);
-        const meData = meSnap.data();
-        
+        const { data: meData } = await getProfile(user.id);
         const myFollowing = meData?.following || [];
         const initialMap: Record<string, boolean> = {};
         myFollowing.forEach((id: string) => {
@@ -73,11 +68,9 @@ export default function ExplorePage() {
         });
         setFollowed(initialMap);
 
-        const q2 = query(collection(db, "builder_profiles"), limit(10));
-        const snapshot = await getDocs(q2);
-        const loadedBuilders = snapshot.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(b => b.id !== user.uid)
+        const { data: allBuilders } = await getAllProfiles();
+        const loadedBuilders = (allBuilders || [])
+          .filter(b => b.id !== user.id && b.uid !== user.id)
           .slice(0, 3);
         
         setSuggestedBuilders(loadedBuilders);
@@ -92,14 +85,10 @@ export default function ExplorePage() {
     if (!user) return;
     setFollowed(prev => ({ ...prev, [targetUserId]: !isFollowing }));
     try {
-      const meRef = doc(db, "builder_profiles", user.uid);
-      const targetRef = doc(db, "builder_profiles", targetUserId);
       if (isFollowing) {
-        await updateDoc(meRef, { following: arrayRemove(targetUserId) });
-        await updateDoc(targetRef, { followers: arrayRemove(user.uid) });
+        await disconnectFromBuilder(user.id, targetUserId);
       } else {
-        await updateDoc(meRef, { following: arrayUnion(targetUserId) });
-        await updateDoc(targetRef, { followers: arrayUnion(user.uid) });
+        await connectToBuilder(user.id, targetUserId);
       }
     } catch (error) {
       console.error("Error toggling follow:", error);
@@ -108,11 +97,11 @@ export default function ExplorePage() {
   };
 
   useEffect(() => {
-    const q = query(collection(db, "posts"), orderBy("created_at", "desc"), limit(15));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setTrendingPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsubscribe();
+    async function fetchPosts() {
+      const { data } = await getAllPosts(15);
+      if (data) setTrendingPosts(data);
+    }
+    fetchPosts();
   }, []);
 
   if (loading || !user) {
@@ -129,7 +118,7 @@ export default function ExplorePage() {
   return (
     <div className="flex justify-center min-h-screen bg-white text-black dark:bg-[#050505] dark:text-white font-sans overflow-x-hidden relative selection:bg-black/20 dark:selection:bg-white/20 selection:text-black dark:selection:text-black">
       <div className="flex w-full max-w-[1250px] min-h-screen relative lg:h-[calc(100dvh-2rem)] lg:overflow-hidden lg:my-4">
-        {/* Ambient background (Removed blobs to fix mobile overlap) */}
+        {/* Ambient background */}
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden hidden md:block">
           <div className="absolute -top-40 -right-40 w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.12)_0,transparent_60%)]" />
           <div className="absolute -bottom-40 -left-40 w-[700px] h-[700px] bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.08)_0,transparent_60%)]" />
@@ -180,7 +169,7 @@ export default function ExplorePage() {
                 <motion.div
                   animate={{ scale: searchFocused ? 1.01 : 1 }}
                   transition={{ duration: 0.2 }}
-                    className={`flex items-center gap-4 bg-[#f4f5f7] dark:bg-[#15171a] border border-gray-200 dark:border-white/[0.04] rounded-[16px] px-5 h-[46px] transition-all duration-200 ${searchFocused ? "bg-white dark:bg-black border-[#6366f1]/50 shadow-[0_0_20px_rgba(99,102,241,0.15)]" : "focus-within:bg-[#f8f8f8] dark:focus-within:bg-[#000]"}`}
+                  className={`flex items-center gap-4 bg-[#f4f5f7] dark:bg-[#15171a] border border-gray-200 dark:border-white/[0.04] rounded-[16px] px-5 h-[46px] transition-all duration-200 ${searchFocused ? "bg-white dark:bg-black border-[#6366f1]/50 shadow-[0_0_20px_rgba(99,102,241,0.15)]" : "focus-within:bg-[#f8f8f8] dark:focus-within:bg-[#000]"}`}
                 >
                   <Search className={`w-5 h-5 shrink-0 transition-colors duration-200 ${searchFocused ? "text-[#6366f1]" : "text-black/45 dark:text-white/40"}`} />
                   <input
@@ -211,10 +200,10 @@ export default function ExplorePage() {
                   <button
                     key={label}
                     onClick={() => setActiveCategory(label)}
-                      className={`relative flex-1 flex items-center justify-center h-[53px] px-4 text-[15px] font-bold whitespace-nowrap transition-colors duration-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] outline-none border-none cursor-pointer bg-transparent ${activeCategory === label
-                        ? "text-black dark:text-white"
-                        : "text-[#71767b]"
-                      }`}
+                    className={`relative flex-1 flex items-center justify-center h-[53px] px-4 text-[15px] font-bold whitespace-nowrap transition-colors duration-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] outline-none border-none cursor-pointer bg-transparent ${activeCategory === label
+                      ? "text-black dark:text-white"
+                      : "text-[#71767b]"
+                    }`}
                   >
                     <div className="relative flex items-center gap-2 h-full">
                       <Icon className="w-[18px] h-[18px]" />
@@ -249,7 +238,7 @@ export default function ExplorePage() {
                   <button className="text-[15px] text-blue-400 hover:text-blue-300 transition-colors">See all</button>
                 </div>
 
-                <div className="divide-y divide-white/[0.04]">
+                <div className="divide-y divide-gray-100 dark:divide-white/[0.04]">
                   {TRENDING_TOPICS.slice(0, 5).map((topic, i) => (
                     <motion.button
                       key={topic.tag}
@@ -274,7 +263,7 @@ export default function ExplorePage() {
                 </div>
               </motion.section>
 
-              {/* ── Suggested Builders (Instagram-style cards) ── */}
+              {/* ── Suggested Builders ── */}
               <motion.section variants={stagger.item} className="border-b border-gray-200 dark:border-white/[0.06]">
                 <div className="flex items-center justify-between px-6 pt-6 pb-4">
                   <div className="flex items-center gap-2.5">
@@ -284,59 +273,61 @@ export default function ExplorePage() {
                   <button className="text-[15px] text-blue-400 hover:text-blue-300 transition-colors">See all</button>
                 </div>
 
-                <div className="divide-y divide-white/[0.04]">
-                  {suggestedBuilders.map((builder) => (
-                    <motion.div
-                      key={builder.id}
-                      whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-                      className="px-6 py-4 flex items-center gap-4 transition-colors"
-                    >
-                      <div className="relative shrink-0">
-                        <img
-                          src={builder.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${builder.id}`}
-                          alt={builder.full_name || "Builder"}
-                          className="w-12 h-12 rounded-full bg-black/10 dark:bg-white/10 object-cover"
-                        />
-                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-[3px] border-black" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[16px] font-bold text-black dark:text-white truncate">{builder.full_name || "Builder"}</span>
-                          {builder.verified && <Verified className="w-4 h-4 text-blue-400 shrink-0 fill-blue-400" />}
-                        </div>
-                        <p className="text-[14px] text-black dark:text-white/40 truncate">@{builder.username || builder.id.substring(0,8)} · {builder.followers?.length || 0} followers</p>
-                        <p className="text-[14px] text-black dark:text-white/50 mt-1 flex items-center gap-1.5">
-                          <Rocket className="w-3.5 h-3.5 text-purple-400" />
-                          Building: {builder.building || "something cool"}
-                        </p>
-                      </div>
-
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleToggleFollow(builder.id, !!followed[builder.id])}
-                        className={`shrink-0 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-200 border ${followed[builder.id]
-                            ? "bg-transparent border-gray-200 dark:border-white/20 text-black dark:text-white/60 hover:border-red-500/40 hover:text-red-400"
-                              : "bg-black text-white border-black/20 dark:bg-white dark:text-black dark:border-white hover:bg-black/90 dark:hover:bg-white/90"
-                          }`}
+                <div className="divide-y divide-gray-100 dark:divide-white/[0.04]">
+                  {suggestedBuilders.map((builder) => {
+                    const bId = builder.id || builder.uid;
+                    return (
+                      <motion.div
+                        key={bId}
+                        whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                        className="px-6 py-4 flex items-center gap-4 transition-colors"
                       >
-                        {followed[builder.id] ? "Following" : "Follow"}
-                      </motion.button>
-                    </motion.div>
-                  ))}
+                        <div className="relative shrink-0">
+                          <img
+                            src={builder.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${bId}`}
+                            alt={builder.full_name || "Builder"}
+                            className="w-12 h-12 rounded-full bg-black/10 dark:bg-white/10 object-cover"
+                          />
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-[3px] border-black" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[16px] font-bold text-black dark:text-white truncate">{builder.full_name || "Builder"}</span>
+                            {builder.verified && <Verified className="w-4 h-4 text-blue-400 shrink-0 fill-blue-400" />}
+                          </div>
+                          <p className="text-[14px] text-black dark:text-white/40 truncate">@{builder.username || bId.substring(0,8)} · {builder.followers?.length || 0} followers</p>
+                          <p className="text-[14px] text-black dark:text-white/50 mt-1 flex items-center gap-1.5">
+                            <Rocket className="w-3.5 h-3.5 text-purple-400" />
+                            Role: {builder.role || "Builder"}
+                          </p>
+                        </div>
+
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleToggleFollow(bId, !!followed[bId])}
+                          className={`shrink-0 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-200 border ${followed[bId]
+                              ? "bg-transparent border-gray-200 dark:border-white/20 text-black dark:text-white/60 hover:border-red-500/40 hover:text-red-400"
+                              : "bg-black text-white border-black/20 dark:bg-white dark:text-black dark:border-white hover:bg-black/90 dark:hover:bg-white/90"
+                            }`}
+                        >
+                          {followed[bId] ? "Following" : "Follow"}
+                        </motion.button>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.section>
 
-              {/* ── Popular Discussions (Twitter/X-style feed) ── */}
+              {/* ── Popular Discussions ── */}
               <motion.section variants={stagger.item}>
                 <div className="flex items-center gap-2.5 px-6 pt-6 pb-4 border-b border-gray-200 dark:border-white/[0.06]">
                   <Sparkles className="w-5 h-5 text-purple-400" />
                   <span className="text-[18px] font-bold text-black dark:text-white">Popular Discussions</span>
                 </div>
 
-                <div className="divide-y divide-white/[0.06]">
+                <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
                   {trendingPosts.length === 0 ? (
-                    /* Empty state */
                     <div className="flex flex-col items-center justify-center py-24 gap-5">
                       <div className="w-20 h-20 rounded-full bg-white/[0.04] flex items-center justify-center">
                         <Sparkles className="w-8 h-8 text-black dark:text-white/20" />
@@ -375,31 +366,34 @@ export default function ExplorePage() {
   );
 }
 
-// ── Post Card component (X/Twitter style) ────────────────────────────────────
 function PostCard({ post, index }: { post: any; index: number }) {
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(Math.floor(Math.random() * 200) + 5);
+  const [likeCount, setLikeCount] = useState(Array.isArray(post.likes) ? post.likes.length : 5);
   const [bookmarked, setBookmarked] = useState(false);
 
-  const timeAgo = (ts: any) => {
-    if (!ts) return "now";
-    const secs = Math.floor((Date.now() - (ts.toMillis?.() ?? Date.now())) / 1000);
-    if (secs < 60) return `${secs}s`;
-    if (secs < 3600) return `${Math.floor(secs / 60)}m`;
-    if (secs < 86400) return `${Math.floor(secs / 3600)}h`;
-    return `${Math.floor(secs / 86400)}d`;
+  const timeAgo = (dateStr: any) => {
+    if (!dateStr) return "now";
+    try {
+      const date = new Date(dateStr);
+      const secs = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (secs < 60) return `${secs}s`;
+      if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+      if (secs < 86400) return `${Math.floor(secs / 3600)}h`;
+      return `${Math.floor(secs / 86400)}d`;
+    } catch {
+      return "now";
+    }
   };
 
-  const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username || "user"}`;
-  const replies = Math.floor(Math.random() * 30) + 1;
-  const reposts = Math.floor(Math.random() * 80) + 2;
-  const views = Math.floor(Math.random() * 5000) + 100;
+  const avatar = post.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username || "user"}`;
+  const replies = post.comments_count || 0;
+  const reposts = 0;
+  const views = post.views_count || 0;
 
   const TYPE_COLORS: Record<string, string> = {
-    building: "text-green-400",
+    update: "text-green-400",
     looking_for: "text-blue-400",
-    idea: "text-purple-400",
-    shipped: "text-orange-400",
+    build_log: "text-purple-400",
   };
 
   return (
@@ -420,7 +414,7 @@ function PostCard({ post, index }: { post: any; index: number }) {
         {/* Header row */}
         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
           <span className="text-[16px] font-bold text-black dark:text-white hover:underline cursor-pointer">
-            {post.author_username || "builder"}
+            {post.author_name || post.author_username || "builder"}
           </span>
           <span className="text-[15px] text-black dark:text-white/30">·</span>
           <span className="text-[15px] text-black dark:text-white/30">{timeAgo(post.created_at)}</span>
@@ -441,7 +435,6 @@ function PostCard({ post, index }: { post: any; index: number }) {
 
         {/* Action bar */}
         <div className="flex items-center justify-between max-w-[400px] -ml-2">
-
           {/* Reply */}
           <ActionButton
             icon={<MessageCircle className="w-[20px] h-[20px]" />}
@@ -463,8 +456,8 @@ function PostCard({ post, index }: { post: any; index: number }) {
             whileTap={{ scale: 0.85 }}
             onClick={(e) => {
               e.stopPropagation();
-              setLiked(p => !p);
-              setLikeCount(p => liked ? p - 1 : p + 1);
+              setLiked((p: boolean) => !p);
+              setLikeCount((p: number) => liked ? p - 1 : p + 1);
             }}
             className="flex items-center gap-1.5 group/btn"
           >
@@ -481,7 +474,7 @@ function PostCard({ post, index }: { post: any; index: number }) {
             whileTap={{ scale: 0.85 }}
             onClick={(e) => {
               e.stopPropagation();
-              setBookmarked(p => !p)
+              setBookmarked((p: boolean) => !p);
             }}
             className="group/btn"
           >

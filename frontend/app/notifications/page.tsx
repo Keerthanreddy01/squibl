@@ -21,7 +21,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     if (!user) return;
-    const unsub = subscribeToNotifications(user.uid, (data) => setNotifications(data));
+    const unsub = subscribeToNotifications(user.id, (data) => setNotifications(data));
     return () => unsub();
   }, [user]);
 

@@ -1,152 +1,59 @@
 "use client";
 
-import { useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
 
 interface UniqueEffectsSectionProps {
-  panelImage?: string; // Image URL provided by user to fill the left panel
+  panelImage?: string;
 }
 
-export function UniqueEffectsSection({
-  panelImage
-}: UniqueEffectsSectionProps) {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
+export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
   return (
     <section
-      ref={sectionRef}
       id="mobile-app"
-      className="relative pt-32 sm:pt-40 lg:pt-44 pb-20 sm:pb-28 lg:pb-36 bg-[#0A0A0A] text-white overflow-hidden font-sans"
+      className="relative w-full bg-white text-neutral-900 overflow-hidden font-sans pt-8 sm:pt-12 lg:pt-14 pb-16 sm:pb-24 lg:pb-28"
     >
-      <div className="relative z-10 max-w-[1420px] mx-auto px-4 sm:px-6 lg:px-8">
-
-        {/* 3-PANEL ASYMMETRIC GRID */}
-        <div className="grid lg:grid-cols-12 gap-3.5 items-stretch">
-
-          {/* ======================================================== */}
-          {/* PANEL 1: LEFT (ORANGE-RED BACKGROUND #E84738) */}
-          {/* ======================================================== */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-            className="lg:col-span-5 bg-[#E84738] rounded-3xl lg:rounded-r-none overflow-hidden relative min-h-[520px] lg:min-h-[640px] shadow-2xl flex items-center justify-center"
-          >
-            {panelImage ? (
-              <img
-                src={panelImage}
-                alt="Squibl Showcase"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center text-white/80 font-mono text-sm border-2 border-dashed border-white/30 rounded-2xl m-4 bg-black/10 backdrop-blur-sm select-none">
-                <span className="font-extrabold text-white text-base tracking-wider uppercase mb-1">
-                  [YOUR FULL IMAGE HERE]
-                </span>
-                <span className="text-xs text-white/70 max-w-xs leading-relaxed">
-                  The phone mockup has been removed. Pass your image URL to fill this entire left panel.
-                </span>
-              </div>
-            )}
-          </motion.div>
-
-
-          {/* ======================================================== */}
-          {/* RIGHT SIDE CONTAINER (STACKED PANELS 2 & 3) */}
-          {/* ======================================================== */}
-          <div className="lg:col-span-7 flex flex-col gap-3.5">
-
-            {/* ------------------------------------------------------ */}
-            {/* PANEL 2: TOP RIGHT (LIGHT BLUE BACKGROUND #9BC3E6) */}
-            {/* ------------------------------------------------------ */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="bg-[#9BC3E6] rounded-3xl lg:rounded-l-none p-8 sm:p-14 flex flex-col items-center justify-between text-center relative overflow-hidden min-h-[380px] sm:min-h-[420px] shadow-xl"
-            >
-              {/* Top Logo Lockup */}
-              <div className="flex items-center gap-2 text-white z-10 mb-auto">
-                <img src="/newlogo.png" alt="Squibl Official Logo" className="w-7 h-7 rounded-full object-cover shadow-sm border border-white/30" />
-                <span className="font-extrabold tracking-tight text-lg text-white uppercase font-sans">SQUIBL</span>
-              </div>
-
-              {/* CENTERED EDITORIAL HEADLINE */}
-              <div className="relative my-auto w-full max-w-xl flex flex-col items-center justify-center z-10">
-                <h3 className="text-5xl sm:text-7xl lg:text-[88px] font-black tracking-[-0.035em] text-white uppercase leading-[0.91] relative z-10">
-                  YOUR WORK.<br />
-                  EVERYWHERE.
-                </h3>
-              </div>
-
-              <div className="mt-auto" />
-            </motion.div>
-
-
-            {/* ------------------------------------------------------ */}
-            {/* PANEL 3: BOTTOM RIGHT (NEAR-BLACK BACKGROUND #181818) */}
-            {/* ------------------------------------------------------ */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="bg-[#181818] rounded-3xl lg:rounded-l-none p-7 sm:p-11 flex flex-col justify-between text-white relative overflow-hidden min-h-[270px] shadow-xl border border-white/5"
-            >
-              {/* Top Row: URL / Social Handle Left & Tagline Right */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="font-extrabold text-xl sm:text-2xl tracking-[-0.02em] uppercase text-white">
-                    SQUIBL.COM
-                  </h4>
-                  <p className="text-[10px] text-white/50 font-mono tracking-[0.1em] uppercase mt-0.5">
-                    @SQUIBL
-                  </p>
-                </div>
-
-                {/* Right Tagline */}
-                <div className="text-right font-mono text-[10px] tracking-[0.08em] text-white/60 uppercase leading-tight">
-                  <span className="block font-bold text-[#E84738]">IOS & ANDROID</span>
-                  <span className="text-white/40 block mt-0.5">
-                    REALTIME SYNC<br />VERSION 2.4.0
-                  </span>
-                </div>
-              </div>
-
-              {/* Bottom CTA Row: Headline + Arrow Line + Official Logo Button */}
-              <div className="flex items-end justify-between gap-4 pt-8">
-                <h3 className="font-extrabold text-2xl sm:text-4xl uppercase leading-[0.96] tracking-[-0.03em] text-white">
-                  DOWNLOAD APP FOR<br />
-                  THE BEST EXPERIENCE
-                </h3>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  {/* Arrow Line */}
-                  <div className="hidden sm:flex items-center gap-2 text-white/40">
-                    <span className="w-12 sm:w-16 h-px bg-white/40" />
-                    <ArrowRight className="w-4 h-4 text-white/60" />
-                  </div>
-
-                  {/* OFFICIAL LOGO BUTTON */}
-                  <a
-                    href="#download"
-                    className="w-14 h-14 p-2 rounded-2xl bg-white flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all border border-white/20"
-                    title="Squibl Official Logo"
-                  >
-                    <img src="/newlogo.png" alt="Squibl Logo" className="w-full h-full rounded-xl object-cover" />
-                  </a>
-                </div>
-              </div>
-            </motion.div>
-
+      <div className="max-w-[1440px] mx-auto px-6 sm:px-10 lg:px-16 relative z-10 flex flex-col items-center">
+        {/* Top Header Row inside Section (matching reference composition) */}
+        <div className="w-full flex items-center justify-between mb-6 sm:mb-12">
+          {/* Top Left: Editorial Brand Typography */}
+          <div className="flex items-center gap-2 select-none">
+            <span className="font-serif italic text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-neutral-950 font-display">
+              squibl
+            </span>
           </div>
 
+          {/* Top Right: "Download now" Pill Button with Apple logo */}
+          <a
+            href="#download"
+            className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-white border border-neutral-200/90 text-neutral-900 text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md hover:bg-neutral-50 transition-all duration-300 active:scale-95 cursor-pointer"
+          >
+            <svg
+              className="w-4 h-4 fill-current text-neutral-900"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.54c.67-.82 1.13-1.96.99-3.1-.98.04-2.16.66-2.85 1.46-.62.72-1.16 1.88-.99 3.01 1.09.08 2.19-.55 2.85-1.37z" />
+            </svg>
+            <span>Download now</span>
+          </a>
         </div>
 
+        {/* Center Visual: Large Hand holding iPhone */}
+        <motion.div
+          initial={{ opacity: 0, y: 30, scale: 0.97 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, margin: "-10%" }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full flex items-center justify-center relative py-4 sm:py-8 lg:py-10"
+        >
+          <img
+            src="/hand-iphone.png"
+            alt="Squibl Mobile App Preview"
+            className="w-auto max-w-full h-auto max-h-[560px] sm:max-h-[680px] lg:max-h-[820px] object-contain select-none pointer-events-none drop-shadow-xl"
+          />
+        </motion.div>
       </div>
     </section>
   );
 }
+

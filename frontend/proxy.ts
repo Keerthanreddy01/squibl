@@ -14,7 +14,7 @@ export function proxy(request: NextRequest) {
 
   // ── Waitlist Gate ───────────────────────────────────────────────────────────
   // We use the `cs_uid` cookie purely as a routing signal to know someone is 
-  // logged in. Actual authorization is handled by Firebase client-side.
+  // logged in. Actual authorization is handled by Supabase client-side.
   const csUid = request.cookies.get('cs_uid')?.value;
   
   // Get admin UIDs from env, fallback to empty array

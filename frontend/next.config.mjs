@@ -36,20 +36,20 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      // Scripts: self + Next.js inline + Firebase SDKs + EmailJS + Lottie WASM + Vercel + Turnstile
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://*.firebaseapp.com https://*.googleapis.com https://apis.google.com https://cdn.emailjs.com https://unpkg.com https://va.vercel-scripts.com https://challenges.cloudflare.com",
+      // Scripts: self + Next.js inline + EmailJS + Lottie WASM + Vercel + Turnstile
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.emailjs.com https://unpkg.com https://va.vercel-scripts.com https://challenges.cloudflare.com",
       // Styles: self + inline (needed for Tailwind)
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Fonts: self + Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Images: self + data URIs + dicebear avatars + Firebase Storage + CloudFront + GitHub avatars
-      "img-src 'self' data: blob: https://*.googleusercontent.com https://*.googleapis.com https://api.dicebear.com https://*.firebasestorage.app https://*.cloudfront.net https://*.githubusercontent.com",
-      // Media: self + CloudFront (video)
-      "media-src 'self' https://*.cloudfront.net",
-      // Connect (API calls): self + Firebase + Google APIs + EmailJS + Lottie WASM fetching
-      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com wss://*.firebaseio.com https://api.emailjs.com https://unpkg.com",
+      // Images: self + data URIs + dicebear avatars + Supabase Storage + CloudFront + GitHub avatars + Google user content
+      "img-src 'self' data: blob: https://*.googleusercontent.com https://api.dicebear.com https://*.supabase.co https://*.supabase.in https://*.cloudfront.net https://*.githubusercontent.com",
+      // Media: self + CloudFront (video) + Supabase Storage
+      "media-src 'self' blob: https://*.cloudfront.net https://*.supabase.co https://*.supabase.in",
+      // Connect (API calls): self + Supabase + EmailJS + Lottie WASM fetching + Cloudflare Turnstile
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.emailjs.com https://unpkg.com https://challenges.cloudflare.com",
       // Frames: self + Google auth popup + Turnstile
-      "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://challenges.cloudflare.com",
+      "frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com",
       // No plugins
       "object-src 'none'",
       // Base URI restriction
@@ -63,6 +63,12 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  transpilePackages: [
+    '@squibl/database',
+    '@squibl/types',
+    '@squibl/constants',
+    '@squibl/validation',
+  ],
   turbopack: {
     root: path.resolve(__dirname, '..'),
   },
@@ -74,7 +80,8 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**.googleusercontent.com' },
       { protocol: 'https', hostname: 'api.dicebear.com' },
-      { protocol: 'https', hostname: '**.firebasestorage.app' },
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: '**.supabase.in' },
       { protocol: 'https', hostname: '**.githubusercontent.com' },
     ],
   },
