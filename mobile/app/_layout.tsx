@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { SplashScreenView } from '../components/SplashScreenView';
 
 export default function RootLayout() {
@@ -19,17 +19,21 @@ export default function RootLayout() {
   };
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={styles.rootContainer}>
       <StatusBar style="dark" />
+      {Platform.OS === 'android' && (
+        <RNStatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
+      )}
       <Stack
         screenOptions={{
           headerShown: false,
+          contentStyle: { backgroundColor: '#FFFFFF' },
           animation: 'fade',
           animationDuration: 220,
         }}
       >
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(auth)" options={{ contentStyle: { backgroundColor: '#FFFFFF' } }} />
+        <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: '#FFFFFF' } }} />
       </Stack>
 
       {!isSplashComplete && (
@@ -42,6 +46,10 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   splashOverlay: {
     position: 'absolute',
     top: 0,

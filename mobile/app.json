@@ -8,6 +8,7 @@
     "orientation": "portrait",
     "icon": "./assets/squibl-logo.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#ffffff",
     "splash": {
       "image": "./assets/squibl-logo.png",
       "resizeMode": "contain",
@@ -17,6 +18,12 @@
       "supportsTablet": true
     },
     "android": {
+      "backgroundColor": "#ffffff",
+      "statusBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#ffffff",
+        "translucent": false
+      },
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/squibl-logo.png"
