@@ -17,6 +17,26 @@ config.resolver.nodeModulesPaths = [
 
 // 3. Fallback explicit mappings for hoisted packages
 config.resolver.extraNodeModules = {
+  '@expo/vector-icons': path.resolve(
+    monorepoRoot,
+    'node_modules/@expo/vector-icons'
+  ),
+  'react-native-reanimated': path.resolve(
+    projectRoot,
+    'node_modules/react-native-reanimated'
+  ),
+  'react-native-worklets': path.resolve(
+    monorepoRoot,
+    'node_modules/react-native-worklets'
+  ),
+  'expo-glass-effect': path.resolve(
+    projectRoot,
+    'node_modules/expo-router/node_modules/expo-glass-effect'
+  ),
+  'ansi-regex': path.resolve(
+    monorepoRoot,
+    'node_modules/ansi-regex'
+  ),
   '@react-native-async-storage/async-storage': path.resolve(
     monorepoRoot,
     'node_modules/@react-native-async-storage/async-storage'
