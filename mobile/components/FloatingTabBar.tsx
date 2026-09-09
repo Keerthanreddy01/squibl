@@ -13,9 +13,14 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  withSequence,
+  Easing,
   type SharedValue,
 } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Tabs } from 'expo-router';
 
 export type FloatingTabBarProps = Parameters<
@@ -26,172 +31,56 @@ interface TabConfig {
   name: string;
   label: string;
   iconName: keyof typeof Feather.glyphMap;
+  badge?: number | string;
 }
 
-const TAB_CONFIGS: TabConfig[] = [
+const BASE_TAB_CONFIGS: Omit<TabConfig, 'badge'>[] = [
   { name: 'feed', label: 'Feed', iconName: 'layers' },
   { name: 'explore', label: 'Explore', iconName: 'compass' },
   { name: 'messages', label: 'Messages', iconName: 'message-square' },
   { name: 'profile', label: 'Profile', iconName: 'user' },
 ];
 
-// Apple segmented control spring physics: fluid, natural, responsive settling
 const APPLE_SPRING_CONFIG = {
   damping: 24,
-  stiffness: 220,
-  mass: 0.7,
+  stiffness: 260,
+  mass: 0.6,
 };
 
-// Module-level cache guarantees the single glass bubble never resets or blinks during tab changes
-const INITIAL_BAR_WIDTH = Math.min(380, Dimensions.get('window').width - 40);
-const INITIAL_TAB_WIDTH = Math.max(0, (INITIAL_BAR_WIDTH - 12) / TAB_CONFIGS.length);
-let cachedIndicatorX = 6;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const BAR_MAX_WIDTH = Math.min(372, SCREEN_WIDTH - 36);
+const BAR_HEIGHT = 64;
+const PILL_INSET = 5;
+const ACTIVE_PILL_HEIGHT = BAR_HEIGHT - PILL_INSET * 2;
+const HORIZONTAL_PADDING = 6;
+const INITIAL_TAB_WIDTH = Math.max(0, (BAR_MAX_WIDTH - HORIZONTAL_PADDING * 2) / BASE_TAB_CONFIGS.length);
+
+let cachedIndicatorX = HORIZONTAL_PADDING;
 let cachedIndicatorWidth = INITIAL_TAB_WIDTH;
 let hasPositionCache = false;
-
-// Sub-component for individual tab items: applies subtle optical lens magnification & refraction
-// dynamically based on proximity to the moving glass lens (zero DOM duplication, zero ghosting)
-interface AnimatedTabItemProps {
-  route: { key: string; name: string };
-  index: number;
-  config: TabConfig;
-  translateX: SharedValue<number>;
-  indicatorWidth: SharedValue<number>;
-  isDraggingShared: SharedValue<boolean>;
-  tabWidth: number;
-  horizontalPadding: number;
-  isFocused: boolean;
-  isHovered: boolean;
-  onPress: () => void;
-  onLongPress: () => void;
-  onHoverIn: () => void;
-  onHoverOut: () => void;
-  onLayout: (e: LayoutChangeEvent) => void;
-  accessibilityLabel?: string;
-  testID?: string;
-}
-
-function AnimatedTabItem({
-  route,
-  index,
-  config,
-  translateX,
-  indicatorWidth,
-  isDraggingShared,
-  tabWidth,
-  horizontalPadding,
-  isFocused,
-  isHovered,
-  onPress,
-  onLongPress,
-  onHoverIn,
-  onHoverOut,
-  onLayout,
-  accessibilityLabel,
-  testID,
-}: AnimatedTabItemProps) {
-  // Continuous optical lens distortion & magnification curve (1.0x to 1.05x resting, 1.075x dragging)
-  const animatedLensStyle = useAnimatedStyle(() => {
-    if (tabWidth <= 0) return { transform: [{ scale: 1 }] };
-
-    const tabCenterX = horizontalPadding + (index + 0.5) * tabWidth;
-    const bubbleCenterX = translateX.value + indicatorWidth.value / 2;
-    const distance = Math.abs(bubbleCenterX - tabCenterX);
-    const influenceRadius = tabWidth * 0.85;
-
-    // Organic cubic lens falloff curve
-    const t = Math.max(0, 1 - distance / influenceRadius);
-    const curve = t * t * (3 - 2 * t);
-
-    // Subtle optical magnification: 1.03-1.06x as requested
-    const dragBoost = isDraggingShared.value ? 0.025 : 0;
-    const scale = 1.0 + curve * (0.05 + dragBoost);
-
-    // Microscopic lateral optical displacement toward the lens curvature center (max 1.5px)
-    const deltaX = bubbleCenterX - tabCenterX;
-    const displacementX = Math.sign(deltaX) * Math.min(Math.abs(deltaX) * 0.03, 1.5) * curve;
-
-    return {
-      transform: [
-        { translateX: displacementX },
-        { scale: scale },
-      ],
-    };
-  });
-
-  // Smooth optical illumination curve: items under the glass lens brighten to pure white
-  const animatedOpacityStyle = useAnimatedStyle(() => {
-    if (tabWidth <= 0) return { opacity: isFocused ? 1 : 0.45 };
-
-    const tabCenterX = horizontalPadding + (index + 0.5) * tabWidth;
-    const bubbleCenterX = translateX.value + indicatorWidth.value / 2;
-    const distance = Math.abs(bubbleCenterX - tabCenterX);
-    const influenceRadius = tabWidth * 0.85;
-
-    const t = Math.max(0, 1 - distance / influenceRadius);
-    const curve = t * t * (3 - 2 * t);
-    const opacity = isHovered ? 0.75 : 0.45 + curve * 0.55;
-
-    return {
-      opacity: opacity,
-    };
-  });
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={isFocused ? { selected: true } : {}}
-      accessibilityLabel={accessibilityLabel}
-      testID={testID}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      onHoverIn={onHoverIn}
-      onHoverOut={onHoverOut}
-      onLayout={onLayout}
-      style={[
-        styles.tabButton,
-        isHovered && styles.tabButtonHovered,
-      ]}
-      // Inactive tabs receive clicks directly; active tab passes through to the draggable bubble
-      pointerEvents={isFocused ? 'none' : 'auto'}
-    >
-      <Animated.View style={[styles.tabContentContainer, animatedLensStyle]}>
-        <Animated.View style={[styles.iconWrapper, animatedOpacityStyle]}>
-          <Feather
-            name={config.iconName}
-            size={20}
-            color="#FFFFFF"
-          />
-        </Animated.View>
-        <Animated.Text
-          style={[
-            styles.tabLabel,
-            animatedOpacityStyle,
-            isFocused && styles.tabLabelActive,
-          ]}
-          numberOfLines={1}
-        >
-          {config.label}
-        </Animated.Text>
-      </Animated.View>
-    </Pressable>
-  );
-}
 
 export function FloatingTabBar({
   state,
   descriptors,
   navigation,
 }: FloatingTabBarProps) {
-  const [tabBarWidth, setTabBarWidth] = useState(INITIAL_BAR_WIDTH);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [tabBarWidth, setTabBarWidth] = useState(BAR_MAX_WIDTH);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
   const activeIndex = state.index;
   const numTabs = state.routes.length;
-
-  const horizontalPadding = 6;
+  const horizontalPadding = HORIZONTAL_PADDING;
   const availableWidth = Math.max(0, tabBarWidth - horizontalPadding * 2);
   const tabWidth = numTabs > 0 ? availableWidth / numTabs : INITIAL_TAB_WIDTH;
+
+  const barPageXRef = useRef(0);
+  const barLayoutRef = useRef<{ x: number; y: number; width: number; height: number }>({
+    x: 0,
+    y: 0,
+    width: BAR_MAX_WIDTH,
+    height: BAR_HEIGHT,
+  });
 
   // Track layout measurements for adaptive tab sizing
   const tabLayouts = useRef<Record<number, { x: number; width: number }>>({});
@@ -205,7 +94,8 @@ export function FloatingTabBar({
 
   const translateX = useSharedValue(cachedIndicatorX);
   const indicatorWidth = useSharedValue(cachedIndicatorWidth);
-  const scale = useSharedValue(1);
+  const stretchX = useSharedValue(1);
+  const stretchY = useSharedValue(1);
   const isDraggingShared = useSharedValue(false);
 
   // References for gesture tracking
@@ -217,7 +107,60 @@ export function FloatingTabBar({
   const minX = horizontalPadding;
   const maxX = Math.max(minX, tabBarWidth - horizontalPadding - tabWidth);
 
-  // Animate the single persistent glass bubble to a target tab
+  // Dynamically compose tab configs with live badge counts
+  const TAB_CONFIGS: TabConfig[] = BASE_TAB_CONFIGS.map((t) => ({
+    ...t,
+    badge: t.name === 'messages' && unreadMessages > 0 ? unreadMessages : undefined,
+  }));
+
+  // Fetch real unread message count from Supabase
+  useEffect(() => {
+    let channel: any = null;
+    let cancelled = false;
+
+    const fetchUnread = async () => {
+      try {
+        const { supabase: sb } = await import('../lib/supabase');
+        const { data: { session } } = await sb.auth.getSession();
+        const uid = session?.user?.id;
+        if (!uid || cancelled) return;
+
+        const { data } = await (sb.from('conversation_participants') as any)
+          .select('unread_count')
+          .eq('user_id', uid);
+
+        if (!cancelled) {
+          const total = (data ?? []).reduce((sum: number, r: any) => sum + (r.unread_count ?? 0), 0);
+          setUnreadMessages(total);
+        }
+
+        channel = sb
+          .channel('tabbar-unread-realtime')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${uid}` },
+            async () => {
+              const { data: updated } = await (sb.from('conversation_participants') as any)
+                .select('unread_count')
+                .eq('user_id', uid);
+              const newTotal = (updated ?? []).reduce((sum: number, r: any) => sum + (r.unread_count ?? 0), 0);
+              if (!cancelled) setUnreadMessages(newTotal);
+            }
+          )
+          .subscribe();
+      } catch {
+        // Fallback gracefully
+      }
+    };
+
+    fetchUnread();
+    return () => {
+      cancelled = true;
+      channel?.unsubscribe();
+    };
+  }, []);
+
+  // Smooth Apple spring movement to active tab
   const animateToTab = useCallback(
     (targetIndex: number) => {
       const layout = tabLayouts.current[targetIndex];
@@ -227,45 +170,94 @@ export function FloatingTabBar({
       cachedIndicatorX = targetX;
       cachedIndicatorWidth = targetWidth;
 
+      // Tactile liquid stretch morph
+      stretchX.value = withSequence(
+        withTiming(1.12, {
+          duration: 160,
+          easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+        }),
+        withSpring(1.0, APPLE_SPRING_CONFIG)
+      );
+
+      stretchY.value = withSequence(
+        withTiming(0.94, {
+          duration: 160,
+          easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+        }),
+        withSpring(1.0, APPLE_SPRING_CONFIG)
+      );
+
       translateX.value = withSpring(targetX, APPLE_SPRING_CONFIG);
       indicatorWidth.value = withSpring(targetWidth, APPLE_SPRING_CONFIG);
     },
-    [tabWidth, horizontalPadding, translateX, indicatorWidth]
+    [tabWidth, horizontalPadding, translateX, indicatorWidth, stretchX, stretchY]
   );
 
-  // Keep bubble synchronized when route changes externally (unless user is actively dragging)
+  // Sync indicator when route changes externally
   useEffect(() => {
     if (!isDraggingRef.current) {
       animateToTab(activeIndex);
     }
   }, [activeIndex, animateToTab]);
 
-  // PanResponder for universal drag on iOS, Android, and Desktop mouse
+  // PanResponder for universal drag & tap across the floating bar
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 3,
-      onPanResponderGrant: () => {
-        isDraggingRef.current = true;
-        isDraggingShared.value = true;
-        setIsDragging(true);
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 6,
+      onPanResponderGrant: (e) => {
+        isDraggingRef.current = false;
         dragStartXRef.current = translateX.value;
-        // Fluidity: subtly increase bubble scale while being dragged
-        scale.value = withSpring(1.04, { damping: 15, stiffness: 240 });
       },
       onPanResponderMove: (_, gestureState) => {
-        const rawX = dragStartXRef.current + gestureState.dx;
-        const clampedX = Math.max(minX, Math.min(maxX, rawX));
-        translateX.value = clampedX;
+        if (!isDraggingRef.current && Math.abs(gestureState.dx) > 6) {
+          isDraggingRef.current = true;
+          isDraggingShared.value = true;
+          stretchX.value = withSpring(1.10, { damping: 18, stiffness: 240 });
+          stretchY.value = withSpring(0.95, { damping: 18, stiffness: 240 });
+        }
+
+        if (isDraggingRef.current) {
+          const rawX = dragStartXRef.current + gestureState.dx;
+          const clampedX = Math.max(minX, Math.min(maxX, rawX));
+          translateX.value = clampedX;
+        }
       },
-      onPanResponderRelease: (_, gestureState) => {
+      onPanResponderRelease: (e, gestureState) => {
+        const wasDragging = isDraggingRef.current;
         isDraggingRef.current = false;
         isDraggingShared.value = false;
-        setIsDragging(false);
-        scale.value = withSpring(1, { damping: 18, stiffness: 200 });
 
-        const currentX = translateX.value;
-        const relativeX = currentX - horizontalPadding;
+        stretchX.value = withSpring(1, APPLE_SPRING_CONFIG);
+        stretchY.value = withSpring(1, APPLE_SPRING_CONFIG);
+
+        if (!wasDragging || Math.abs(gestureState.dx) <= 6) {
+          // Instant Tap gesture: identify touched tab slot
+          const touchX = e.nativeEvent.locationX;
+          const relativeX = touchX - horizontalPadding;
+          const tappedIndex = Math.max(
+            0,
+            Math.min(numTabs - 1, Math.floor(relativeX / tabWidth))
+          );
+
+          animateToTab(tappedIndex);
+          const targetRoute = state.routes[tappedIndex];
+          if (targetRoute) {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: targetRoute.key,
+              canPreventDefault: true,
+            });
+            if (!event.defaultPrevented) {
+              navigation.navigate(targetRoute.name);
+            }
+          }
+          return;
+        }
+
+        // Drag/Swipe Gesture: calculate destination with velocity momentum
+        const projectedX = translateX.value + gestureState.vx * 35;
+        const relativeX = projectedX - horizontalPadding;
         const rawIndex = tabWidth > 0 ? Math.round(relativeX / tabWidth) : activeIndexRef.current;
         const targetIndex = Math.max(0, Math.min(numTabs - 1, rawIndex));
 
@@ -274,45 +266,48 @@ export function FloatingTabBar({
         cachedIndicatorWidth = tabWidth;
         translateX.value = withSpring(snapX, APPLE_SPRING_CONFIG);
 
-        // If dragged to another tab, navigate
         if (targetIndex !== activeIndexRef.current) {
-          navigation.navigate(state.routes[targetIndex].name);
-        } else if (Math.abs(gestureState.dx) < 5) {
-          // Tap on active bubble
-          navigation.emit({
-            type: 'tabPress',
-            target: state.routes[targetIndex].key,
-            canPreventDefault: true,
-          });
+          const targetRoute = state.routes[targetIndex];
+          if (targetRoute) {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: targetRoute.key,
+              canPreventDefault: true,
+            });
+            if (!event.defaultPrevented) {
+              navigation.navigate(targetRoute.name);
+            }
+          }
         }
       },
       onPanResponderTerminate: () => {
         isDraggingRef.current = false;
         isDraggingShared.value = false;
-        setIsDragging(false);
-        scale.value = withSpring(1, { damping: 18, stiffness: 200 });
+        stretchX.value = withSpring(1, APPLE_SPRING_CONFIG);
+        stretchY.value = withSpring(1, APPLE_SPRING_CONFIG);
         const snapX = horizontalPadding + activeIndexRef.current * tabWidth;
         translateX.value = withSpring(snapX, APPLE_SPRING_CONFIG);
       },
     })
   ).current;
 
-  // Pointer event capture on Web
-  const handlePointerDown = (e: any) => {
-    if (Platform.OS === 'web' && e?.target?.setPointerCapture) {
-      try {
-        e.target.setPointerCapture(e.pointerId);
-      } catch { }
-    }
-  };
-
+  // Reanimated style for the sliding black capsule
   const indicatorAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         { translateX: translateX.value },
-        { scale: scale.value },
+        { scaleX: stretchX.value },
+        { scaleY: stretchY.value },
       ],
       width: indicatorWidth.value,
+    };
+  });
+
+  // Reanimated style for the inverted tab row inside the black capsule
+  const invertedContentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: -translateX.value }],
+      width: tabBarWidth,
     };
   });
 
@@ -343,89 +338,113 @@ export function FloatingTabBar({
     }
   };
 
-  return (
-    <View style={styles.floatingContainer} pointerEvents="box-none">
-      {/* Frosted Dark Glass Dock Container */}
-      <View style={styles.tabBarPill} onLayout={handleBarLayout}>
-        {/* ONE persistent draggable liquid-glass bubble */}
-        <Animated.View
-          {...panResponder.panHandlers}
-          onPointerDown={handlePointerDown}
-          style={[
-            styles.slidingIndicatorWrapper,
-            indicatorAnimatedStyle,
-          ]}
-        >
-          {/* Seamless, continuous translucent frosted liquid glass bubble */}
-          <View
-            style={[
-              styles.liquidGlassBubble,
-              isDragging && styles.liquidGlassBubbleActive,
-            ]}
-          >
-            {/* Subtle inner light reflection */}
-            <View style={styles.innerGlassGlow} />
+  // Dynamic bottom elevation respecting home indicators
+  const dynamicBottom = Platform.OS === 'ios'
+    ? Math.max(insets.bottom, 16) + 8
+    : Math.max(insets.bottom, 12) + 8;
 
-            {/* Soft, continuous perimeter chromatic refraction rim */}
-            <View style={styles.chromaticRefractionRim} />
+  return (
+    <View
+      style={[styles.floatingContainer, { bottom: dynamicBottom }]}
+      pointerEvents="box-none"
+    >
+      {/* Elevated Glassmorphic Capsule */}
+      <View
+        style={styles.pillWrapper}
+        onLayout={handleBarLayout}
+        {...panResponder.panHandlers}
+      >
+        {/* Real Native Blur Layer */}
+        <BlurView intensity={85} tint="light" style={StyleSheet.absoluteFill} />
+
+        {/* Milky-white Frosted Glass Wash */}
+        <View style={styles.frostedOverlay} />
+
+        {/* Specular Top Rim Highlight */}
+        <View style={styles.specularTopRim} />
+
+        {/* ── Layer 1: Inactive Base Tab Row (High Contrast Slate) ── */}
+        <View style={styles.tabRowLayer} pointerEvents="none">
+          {state.routes.map((route, index) => {
+            const config = TAB_CONFIGS.find((t) => t.name === route.name) || {
+              name: route.name,
+              label: route.name,
+              iconName: 'circle' as keyof typeof Feather.glyphMap,
+            };
+
+            return (
+              <View
+                key={route.key}
+                style={styles.tabItemCell}
+                onLayout={(e) => handleTabLayout(index, e)}
+              >
+                <View style={styles.iconContainer}>
+                  <Feather
+                    name={config.iconName}
+                    size={21}
+                    color="#71717A"
+                  />
+                  {config.badge !== undefined && (
+                    <View style={styles.badgeInactive}>
+                      <Text style={styles.badgeText}>{config.badge}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.tabLabelInactive} numberOfLines={1}>
+                  {config.label}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* ── Layer 2: Sliding Active Capsule (Solid Builder Black + Inverted Mask) ── */}
+        <Animated.View
+          style={[styles.slidingIndicator, indicatorAnimatedStyle]}
+          pointerEvents="none"
+        >
+          {/* Active Black Capsule Background */}
+          <View style={styles.activeBlackPill}>
+            {/* Subtle top inner reflection */}
+            <View style={styles.activePillReflection} />
+
+            {/* Inverted White Tab Content (Clipped by the Pill) */}
+            <Animated.View style={[styles.invertedRowContainer, invertedContentAnimatedStyle]}>
+              <View style={styles.tabRowLayer}>
+                {state.routes.map((route) => {
+                  const config = TAB_CONFIGS.find((t) => t.name === route.name) || {
+                    name: route.name,
+                    label: route.name,
+                    iconName: 'circle' as keyof typeof Feather.glyphMap,
+                  };
+
+                  return (
+                    <View key={route.key} style={styles.tabItemCell}>
+                      <View style={styles.iconContainer}>
+                        <Feather
+                          name={config.iconName}
+                          size={21}
+                          color="#FFFFFF"
+                        />
+                        {config.badge !== undefined && (
+                          <View style={styles.badgeActive}>
+                            <Text style={styles.badgeText}>{config.badge}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.activeLabelRow}>
+                        <Text style={styles.tabLabelActive} numberOfLines={1}>
+                          {config.label}
+                        </Text>
+                        <View style={styles.activeDot} />
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </Animated.View>
           </View>
         </Animated.View>
-
-        {/* Tab Items - Rendered ONCE with natural optical lens magnification & refraction */}
-        {state.routes.map((route, index) => {
-          const isFocused = state.index === index;
-          const isHovered = hoveredIndex === index && !isFocused;
-          const config = TAB_CONFIGS.find((t) => t.name === route.name) || {
-            name: route.name,
-            label: route.name,
-            iconName: 'circle' as keyof typeof Feather.glyphMap,
-          };
-
-          const onPress = () => {
-            // Smoothly glide the same bubble to the clicked tab
-            animateToTab(index);
-
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
-
-          const onLongPress = () => {
-            navigation.emit({
-              type: 'tabLongPress',
-              target: route.key,
-            });
-          };
-
-          return (
-            <AnimatedTabItem
-              key={route.key}
-              route={route}
-              index={index}
-              config={config}
-              translateX={translateX}
-              indicatorWidth={indicatorWidth}
-              isDraggingShared={isDraggingShared}
-              tabWidth={tabWidth}
-              horizontalPadding={horizontalPadding}
-              isFocused={isFocused}
-              isHovered={isHovered}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              onHoverIn={() => setHoveredIndex(index)}
-              onHoverOut={() => setHoveredIndex(null)}
-              onLayout={(e) => handleTabLayout(index, e)}
-              accessibilityLabel={descriptors[route.key]?.options?.title || config.label}
-              testID={descriptors[route.key]?.options?.tabBarButtonTestID}
-            />
-          );
-        })}
       </View>
     </View>
   );
@@ -434,126 +453,181 @@ export function FloatingTabBar({
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 26 : 18,
-    left: 20,
-    right: 20,
+    left: 18,
+    right: 18,
     alignItems: 'center',
+    zIndex: 999,
   },
-  tabBarPill: {
+
+  // Outer Floating Capsule
+  pillWrapper: {
+    width: '100%',
+    maxWidth: BAR_MAX_WIDTH,
+    height: BAR_HEIGHT,
+    borderRadius: 32,
+    overflow: 'hidden',
+    position: 'relative',
+    justifyContent: 'center',
+    // Apple-style crisp hairline outer boundary
+    borderWidth: 1.2,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    // Deep multi-layered ambient shadow
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 26,
+    elevation: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+  },
+
+  // Frosted Glass Milky Overlay
+  frostedOverlay: {
+    ...(StyleSheet.absoluteFill as any),
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+  },
+
+  // Top Specular Reflection
+  specularTopRim: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
+    height: 1.2,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  },
+
+  // Row Layer for Tabs
+  tabRowLayer: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    maxWidth: 380,
-    height: 64,
-    backgroundColor: 'rgba(18, 18, 22, 0.82)',
-    borderRadius: 36,
-    paddingHorizontal: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-    // Apple-style floating shadow
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    elevation: 12,
-    ...(Platform.OS === 'web'
-      ? {
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-      }
-      : {}),
-  },
-  slidingIndicatorWrapper: {
-    position: 'absolute',
-    top: 6,
-    bottom: 6,
-    left: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  // Apple Modern Liquid Glass Bubble: translucent, soft, continuous
-  liquidGlassBubble: {
-    width: '92%',
     height: '100%',
-    // Translucent glass surface (clean & transparent center)
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 26,
-    // Soft, continuous white glass edge (NO harsh lines, NO separate top/bottom borders)
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
-    // Floating ambient shadow underneath
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.26,
-    shadowRadius: 10,
-    elevation: 6,
-    overflow: 'hidden',
-    ...(Platform.OS === 'web'
-      ? ({
-        backdropFilter: 'blur(24px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-        cursor: 'grab',
-        userSelect: 'none',
-      } as any)
-      : {}),
+    paddingHorizontal: HORIZONTAL_PADDING,
   },
-  liquidGlassBubbleActive: {
-    borderColor: 'rgba(255, 255, 255, 0.32)',
-    backgroundColor: 'rgba(255, 255, 255, 0.11)',
-    ...(Platform.OS === 'web'
-      ? ({
-        cursor: 'grabbing',
-      } as any)
-      : {}),
-  },
-  // Subtle diffuse inner light reflection
-  innerGlassGlow: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  },
-  // Extremely subtle chromatic diffraction rim strictly around the outer glass edge
-  chromaticRefractionRim: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.16)',
-    shadowColor: '#F43F5E',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    pointerEvents: 'none',
-  },
-  tabButton: {
+
+  tabItemCell: {
     flex: 1,
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 24,
-    zIndex: 3,
   },
-  tabButtonHovered: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  tabContentContainer: {
+
+  iconContainer: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconWrapper: {
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 2,
   },
-  tabLabel: {
-    fontSize: 10,
+
+  tabLabelInactive: {
+    fontSize: 10.5,
     fontWeight: '600',
+    color: '#71717A',
     letterSpacing: 0.2,
-    color: '#FFFFFF',
   },
+
+  // Sliding Indicator Wrapper
+  slidingIndicator: {
+    position: 'absolute',
+    top: PILL_INSET,
+    bottom: PILL_INSET,
+    left: 0,
+    zIndex: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Solid Builder Black Active Pill
+  activeBlackPill: {
+    width: '100%',
+    height: ACTIVE_PILL_HEIGHT,
+    backgroundColor: '#18181B',
+    borderRadius: 27,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+
+  // Subtle top reflection on the black capsule
+  activePillReflection: {
+    position: 'absolute',
+    top: 0,
+    left: 12,
+    right: 12,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+
+  // Container to synchronize inverted white content with the bar width
+  invertedRowContainer: {
+    height: '100%',
+    justifyContent: 'center',
+  },
+
+  activeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+
   tabLabelActive: {
-    fontWeight: '700',
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+
+  // Squibl Red Indicator Dot on Active Tab
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E50914',
+  },
+
+  // Badges
+  badgeInactive: {
+    position: 'absolute',
+    top: -4,
+    right: -9,
+    backgroundColor: '#E50914',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 4,
+  },
+
+  badgeActive: {
+    position: 'absolute',
+    top: -4,
+    right: -9,
+    backgroundColor: '#E50914',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#18181B',
+    elevation: 4,
+  },
+
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    textAlign: 'center',
   },
 });
