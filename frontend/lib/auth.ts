@@ -82,7 +82,7 @@ export function checkPasswordStrength(password: string): PasswordStrength {
 export async function signInWithGoogle() {
   try {
     const redirectTo = typeof window !== 'undefined'
-      ? `${window.location.origin}/dashboard/home`
+      ? `${window.location.origin}/auth/callback`
       : undefined
 
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -105,7 +105,7 @@ export async function signInWithGoogle() {
 export async function signInWithGithub() {
   try {
     const redirectTo = typeof window !== 'undefined'
-      ? `${window.location.origin}/dashboard/home`
+      ? `${window.location.origin}/auth/callback`
       : undefined
 
     const { data, error } = await supabase.auth.signInWithOAuth({
