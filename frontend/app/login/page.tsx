@@ -215,6 +215,14 @@ export default function LoginPage() {
                   <AlertCircle className="w-4 h-4 shrink-0" />
                 )}
                 <span>{isLocked ? `Locked. Wait ${countdown}s` : error}</span>
+                {!isLocked && error?.toLowerCase().includes("verify your email") && (
+                  <Link
+                    href={`/signup?verify=true&email=${encodeURIComponent(email)}`}
+                    className="underline font-bold text-white hover:opacity-80 ml-1.5 shrink-0"
+                  >
+                    Enter code
+                  </Link>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

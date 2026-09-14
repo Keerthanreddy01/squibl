@@ -2,12 +2,19 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithGoogle, signInWithGithub, signUpWithEmail, checkPasswordStrength } from "@/lib/auth";
+import {
+  signInWithGoogle,
+  signInWithGithub,
+  signUpWithEmail,
+  verifyEmailOtp,
+  resendSignupOtp,
+  checkPasswordStrength,
+} from "@/lib/auth";
 import { getProfile } from "@/lib/profiles";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-import { Chrome, Github, Eye, EyeOff } from "lucide-react";
-import { motion } from "framer-motion";
+import { Chrome, Github, Eye, EyeOff, ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -17,6 +24,15 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Verification state
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,9 +66,36 @@ export default function SignupPage() {
     }
   }, [user, authLoading, checkAndRedirect]);
 
+  // Support direct arrival via link: /signup?verify=true&email=...
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("verify") === "true") {
+        const emailParam = params.get("email");
+        if (emailParam) {
+          setRegisteredEmail(emailParam.trim().toLowerCase());
+          setIsVerifying(true);
+        }
+      }
+    }
+  }, []);
+
+  const startResendCooldown = useCallback(() => {
+    setResendCooldown(60);
+  }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
 
     // Full strength validation before submitting
     const strength = checkPasswordStrength(password);
@@ -67,13 +110,75 @@ export default function SignupPage() {
       const { data, error: authError } = await signUpWithEmail(email, password, { full_name: fullName });
       if (authError) {
         setError(authError.message);
+      } else if (data?.session && data.user) {
+        await checkAndRedirect(data.user.id);
       } else {
-        router.push("/onboarding");
+        const cleanEmail = email.trim().toLowerCase();
+        setRegisteredEmail(cleanEmail);
+        setIsVerifying(true);
+        setOtp("");
+        setError(null);
+        setSuccessMsg(`We sent an 8-digit verification code to ${cleanEmail}`);
+        startResendCooldown();
       }
     } catch (err: any) {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verifyLoading) return;
+
+    const cleanOtp = otp.trim();
+    if (cleanOtp.length !== 8) {
+      setError("Please enter the complete 8-digit verification code.");
+      return;
+    }
+
+    setVerifyLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const { data, error: verifyError } = await verifyEmailOtp(registeredEmail, cleanOtp);
+      if (verifyError) {
+        setError(verifyError.message || "Failed to verify code. Please check and try again.");
+        return;
+      }
+
+      if (data?.user) {
+        await checkAndRedirect(data.user.id);
+      } else {
+        router.push("/onboarding");
+      }
+    } catch (err: any) {
+      setError(err?.message || "An unexpected error occurred during verification.");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resendLoading) return;
+    setResendLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const { error: resendErr } = await resendSignupOtp(registeredEmail);
+      if (resendErr) {
+        setError(resendErr.message || "Could not resend verification code.");
+      } else {
+        setSuccessMsg("A new 8-digit verification code has been sent!");
+        startResendCooldown();
+      }
+    } catch {
+      setError("Failed to resend code. Please try again shortly.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -103,11 +208,8 @@ export default function SignupPage() {
 
   return (
     <main className="flex min-h-screen w-full bg-white dark:bg-black selection:bg-white/30 p-2 transition-all duration-300 lg:h-screen lg:overflow-hidden lg:p-4">
-      
       {/* Left Column (Hero & Background Video) */}
       <div className="relative hidden lg:flex flex-col items-center justify-center px-12 rounded-3xl overflow-hidden shadow-2xl h-full w-[52%] shrink-0">
-        
-        {/* Background Video - No overlays or tint masks */}
         <video 
           autoPlay 
           muted 
@@ -121,7 +223,6 @@ export default function SignupPage() {
           />
         </video>
 
-        {/* Centered Brand Text */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -134,7 +235,7 @@ export default function SignupPage() {
         </motion.div>
       </div>
 
-      {/* Right Column (Sign Up Form) */}
+      {/* Right Column */}
       <div className="flex-1 flex flex-col items-center justify-center py-12 lg:py-6 px-4 sm:px-12 lg:px-16 xl:px-24 overflow-y-auto lg:overflow-hidden no-scrollbar">
         <motion.div
           initial={{ opacity: 0 }}
@@ -142,116 +243,266 @@ export default function SignupPage() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="w-full max-w-xl space-y-8 lg:space-y-6 sm:space-y-10"
         >
-          {/* Header */}
-          <div>
-            <h2 className="text-3xl font-medium tracking-tight text-black dark:text-white">Create New Profile</h2>
-            <p className="text-black dark:text-white/40 text-sm mt-1.5">Input your basic details to begin the journey.</p>
-          </div>
+          {isVerifying ? (
+            /* ─── EMAIL OTP VERIFICATION SCREEN ─── */
+            <div className="space-y-6">
+              {/* Back to Form */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsVerifying(false);
+                  setError(null);
+                  setSuccessMsg(null);
+                }}
+                className="inline-flex items-center gap-2 text-xs font-semibold text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to edit details</span>
+              </button>
 
-          {/* Social Buttons */}
-          <div className="grid grid-cols-2 gap-4">
-            <SocialButton icon={Chrome} label="Google" onClick={handleGoogleSignIn} />
-            <SocialButton icon={Github} label="GitHub" onClick={handleGithubSignIn} />
-          </div>
+              {/* Header */}
+              <div>
+                <h2 className="text-3xl font-medium tracking-tight text-black dark:text-white">Verify Your Email</h2>
+                <p className="text-black dark:text-white/40 text-sm mt-1.5">
+                  Enter the 8-digit verification code sent to your inbox.
+                </p>
+              </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center py-2">
-            <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
-            <span className="flex-shrink mx-4 bg-white dark:bg-black px-4 text-xs font-medium text-black dark:text-white/40 uppercase tracking-widest">Or</span>
-            <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
-          </div>
-
-          {/* Error Banner */}
-          {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center font-bold">
-              {error}
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleEmailSignUp} className="space-y-5">
-            {/* First Name & Last Name */}
-            <div className="grid grid-cols-2 gap-4">
-              <InputGroup 
-                label="First Name" 
-                placeholder="ex. Alex" 
-                id="firstName" 
-                value={firstName} 
-                onChange={(e: any) => setFirstName(e.target.value)} 
-                type="text" 
-                required 
-              />
-              <InputGroup 
-                label="Last Name" 
-                placeholder="ex. Sterling" 
-                id="lastName" 
-                value={lastName} 
-                onChange={(e: any) => setLastName(e.target.value)} 
-                type="text" 
-                required 
-              />
-            </div>
-
-            {/* Email Address */}
-            <InputGroup 
-              label="Email" 
-              placeholder="ex. alex.s@aurora.io" 
-              id="email" 
-              value={email} 
-              onChange={(e: any) => setEmail(e.target.value)} 
-              type="email" 
-              required 
-            />
-
-            {/* Password input group with Lucide Eye toggle icon inside */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <label htmlFor="password" className="text-sm font-medium text-black dark:text-white">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Secure your account"
-                  value={password}
-                  onChange={(e: any) => setPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  className="w-full bg-gray-100 dark:bg-brand-gray border-none rounded-xl h-11 px-4 text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-all duration-300 text-sm"
-                />
+              {/* Registered Email Pill */}
+              <div className="flex items-center gap-2.5 bg-gray-100 dark:bg-brand-gray border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-black dark:text-white">
+                <Mail className="w-4 h-4 text-black/40 dark:text-white/40 shrink-0" />
+                <span className="font-medium truncate flex-1">{registeredEmail}</span>
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-black dark:text-white/40 hover:text-black dark:text-white transition-colors cursor-pointer"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => {
+                    setIsVerifying(false);
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-xs font-semibold text-black dark:text-white hover:underline cursor-pointer shrink-0"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  Change
                 </button>
               </div>
-              <p className="text-xs text-black dark:text-white/30 mt-1">Requires at least 8 symbols.</p>
-            </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-14 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-xl hover:bg-black/90 dark:hover:bg-white/90 active:scale-[0.98] mt-4 transition-all duration-300 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="h-5 w-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-              ) : (
-                "Create Account"
+              {/* Success Banner */}
+              {successMsg && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs text-center font-medium flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
               )}
-            </button>
-          </form>
 
-          {/* Footer Link */}
-          <p className="text-sm text-black dark:text-white/40">
-            Member of the team?{" "}
-            <Link href="/login" className="text-black dark:text-white hover:underline transition-colors ml-1">
-              Log in
-            </Link>
-          </p>
+              {/* Error Banner */}
+              {error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs text-center font-bold">
+                  {error}
+                </div>
+              )}
+
+              {/* OTP Form */}
+              <form onSubmit={handleVerifyOtp} className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="otp-input" className="text-sm font-medium text-black dark:text-white block">
+                    8-Digit Verification Code
+                  </label>
+
+                  {/* 8-Cell segmented input driven by single underlying input */}
+                  <div className="relative">
+                    <input
+                      id="otp-input"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="one-time-code"
+                      maxLength={8}
+                      value={otp}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        setOtp(val);
+                        setError(null);
+                      }}
+                      autoFocus
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+
+                    <div className="grid grid-cols-8 gap-1.5 sm:gap-2">
+                      {Array.from({ length: 8 }).map((_, idx) => {
+                        const digit = otp[idx] || "";
+                        const isCurrent = idx === otp.length;
+                        const isFilled = Boolean(digit);
+                        return (
+                          <div
+                            key={idx}
+                            className={`h-12 sm:h-14 rounded-xl flex items-center justify-center text-lg sm:text-xl font-bold font-mono transition-all duration-200 border ${
+                              isCurrent
+                                ? "border-black dark:border-white ring-2 ring-black/10 dark:ring-white/20 bg-white dark:bg-black text-black dark:text-white"
+                                : isFilled
+                                ? "border-gray-300 dark:border-white/30 bg-gray-50 dark:bg-white/5 text-black dark:text-white"
+                                : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-brand-gray text-black/30 dark:text-white/30"
+                            }`}
+                          >
+                            {digit}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-xs text-black/40 dark:text-white/30">
+                    Paste or type the 8 digits received in your confirmation email.
+                  </p>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={otp.length !== 8 || verifyLoading}
+                  className="w-full h-14 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-xl hover:bg-black/90 dark:hover:bg-white/90 active:scale-[0.98] transition-all duration-300 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                >
+                  {verifyLoading ? (
+                    <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "Verify & Continue"
+                  )}
+                </button>
+              </form>
+
+              {/* Resend Action */}
+              <div className="flex flex-col items-center gap-2 pt-2 text-sm text-black/60 dark:text-white/60">
+                <div className="flex items-center gap-1.5">
+                  <span>Didn't receive the code?</span>
+                  {resendCooldown > 0 ? (
+                    <span className="font-semibold text-black dark:text-white">
+                      Resend in {resendCooldown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resendLoading}
+                      className="font-semibold text-black dark:text-white hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      {resendLoading ? "Sending..." : "Resend code"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ─── INITIAL SIGNUP FORM ─── */
+            <>
+              {/* Header */}
+              <div>
+                <h2 className="text-3xl font-medium tracking-tight text-black dark:text-white">Create New Profile</h2>
+                <p className="text-black dark:text-white/40 text-sm mt-1.5">Input your basic details to begin the journey.</p>
+              </div>
+
+              {/* Social Buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <SocialButton icon={Chrome} label="Google" onClick={handleGoogleSignIn} />
+                <SocialButton icon={Github} label="GitHub" onClick={handleGithubSignIn} />
+              </div>
+
+              {/* Divider */}
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
+                <span className="flex-shrink mx-4 bg-white dark:bg-black px-4 text-xs font-medium text-black dark:text-white/40 uppercase tracking-widest">Or</span>
+                <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
+              </div>
+
+              {/* Error Banner */}
+              {error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center font-bold">
+                  {error}
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleEmailSignUp} className="space-y-5">
+                {/* First Name & Last Name */}
+                <div className="grid grid-cols-2 gap-4">
+                  <InputGroup
+                    label="First Name"
+                    placeholder="ex. Alex"
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e: any) => setFirstName(e.target.value)}
+                    type="text"
+                    required
+                  />
+                  <InputGroup
+                    label="Last Name"
+                    placeholder="ex. Sterling"
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e: any) => setLastName(e.target.value)}
+                    type="text"
+                    required
+                  />
+                </div>
+
+                {/* Email Address */}
+                <InputGroup
+                  label="Email"
+                  placeholder="ex. alex.s@aurora.io"
+                  id="email"
+                  value={email}
+                  onChange={(e: any) => setEmail(e.target.value)}
+                  type="email"
+                  required
+                />
+
+                {/* Password input group */}
+                <div className="flex flex-col gap-1.5 w-full">
+                  <label htmlFor="password" className="text-sm font-medium text-black dark:text-white">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Secure your account"
+                      value={password}
+                      onChange={(e: any) => setPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      className="w-full bg-gray-100 dark:bg-brand-gray border-none rounded-xl h-11 px-4 text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-all duration-300 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-black dark:text-white/40 hover:text-black dark:text-white transition-colors cursor-pointer"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-black dark:text-white/30 mt-1">Requires at least 8 symbols.</p>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-14 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-xl hover:bg-black/90 dark:hover:bg-white/90 active:scale-[0.98] mt-4 transition-all duration-300 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="h-5 w-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+
+              {/* Footer Link */}
+              <p className="text-sm text-black dark:text-white/40">
+                Member of the team?{" "}
+                <Link href="/login" className="text-black dark:text-white hover:underline transition-colors ml-1">
+                  Log in
+                </Link>
+              </p>
+            </>
+          )}
         </motion.div>
       </div>
     </main>

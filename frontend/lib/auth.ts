@@ -164,7 +164,7 @@ export async function signUpWithEmail(email: string, password: string, metadata?
 
     if (error) throw error
 
-    if (data.user) {
+    if (data.user && data.session) {
       setAuthCookie(data.user.id)
       await logSecurityEvent({ uid: data.user.id, event: 'sign_up_success', method: 'email' })
     }
@@ -172,6 +172,59 @@ export async function signUpWithEmail(email: string, password: string, metadata?
     return { data: { user: data.user, session: data.session }, error: null }
   } catch (error: any) {
     return { data: null, error: { message: mapAuthError(error), code: error.code || 'signup_error' } }
+  }
+}
+
+export async function verifyEmailOtp(email: string, token: string) {
+  try {
+    const cleanEmail = email.trim().toLowerCase()
+    const cleanToken = token.trim()
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'signup',
+    })
+
+    if (error) throw error
+
+    if (data.user) {
+      setAuthCookie(data.user.id)
+      await logSecurityEvent({ uid: data.user.id, event: 'sign_in_success', method: 'email' })
+    }
+
+    return { data: { user: data.user, session: data.session }, error: null }
+  } catch (error: any) {
+    const msg = (error.message ?? '').toLowerCase()
+    let friendlyError = mapAuthError(error)
+    if (msg.includes('expired')) {
+      friendlyError = 'This verification code has expired. Please request a fresh code.'
+    } else if (msg.includes('invalid') || msg.includes('token') || msg.includes('incorrect')) {
+      friendlyError = 'Incorrect verification code. Please check your email and try again.'
+    } else if (msg.includes('already') || msg.includes('used')) {
+      friendlyError = 'This verification code has already been used or your email is already verified.'
+    }
+    return { data: null, error: { message: friendlyError, code: error.code || 'otp_error' } }
+  }
+}
+
+export async function resendSignupOtp(email: string) {
+  try {
+    const cleanEmail = email.trim().toLowerCase()
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email: cleanEmail,
+    })
+
+    if (error) throw error
+    return { data, error: null }
+  } catch (error: any) {
+    const msg = (error.message ?? '').toLowerCase()
+    let friendlyError = 'Could not resend verification email. Please try again shortly.'
+    if (msg.includes('rate') || msg.includes('too many') || (error as any).status === 429) {
+      friendlyError = 'Too many attempts. Please wait a minute before requesting another code.'
+    }
+    return { data: null, error: { message: friendlyError, code: error.code || 'resend_error' } }
   }
 }
 
