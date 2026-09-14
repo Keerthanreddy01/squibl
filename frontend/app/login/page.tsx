@@ -2,11 +2,27 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithGoogle, signInWithEmail, signInWithGithub } from "@/lib/auth";
+import {
+  signInWithGoogle,
+  signInWithEmail,
+  signInWithGithub,
+  verifyEmailOtp,
+  resendSignupOtp,
+} from "@/lib/auth";
 import { getProfile } from "@/lib/profiles";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-import { AlertCircle, Clock, Eye, EyeOff, Chrome, Github } from "lucide-react";
+import {
+  AlertCircle,
+  Clock,
+  Eye,
+  EyeOff,
+  Chrome,
+  Github,
+  ArrowLeft,
+  Mail,
+  CheckCircle2,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── Rate-limiting constants ──────────────────────────────────────────────────
@@ -21,6 +37,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // ── OTP Verification State ─────────────────────────────────────────────────
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Brute-force / rate-limit state
   const [attempts, setAttempts] = useState(0);
@@ -43,6 +68,35 @@ export default function LoginPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [lockedUntil]);
+
+  // ── Pre-fill email from URL if navigated from signup ──────────────────────
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get("email");
+      if (emailParam) {
+        const clean = emailParam.trim().toLowerCase();
+        setEmail(clean);
+        setRegisteredEmail(clean);
+      }
+      if (params.get("verify") === "true") {
+        setIsVerifying(true);
+      }
+    }
+  }, []);
+
+  // ── Resend cooldown countdown ──────────────────────────────────────────────
+  const startResendCooldown = useCallback(() => {
+    setResendCooldown(60);
+  }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
 
   const checkAndRedirect = useCallback(async (uid: string) => {
     try {
@@ -83,8 +137,27 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error: authError } = await signInWithEmail(email, password);
+      const cleanEmail = email.trim().toLowerCase();
+      const { data, error: authError } = await signInWithEmail(cleanEmail, password);
+
       if (authError) {
+        // Detect unconfirmed email error reliably (both code and mapped message)
+        const isUnconfirmed =
+          authError.code === "email_not_confirmed" ||
+          authError.message?.toLowerCase().includes("email not confirmed") ||
+          authError.message?.toLowerCase().includes("verify your email");
+
+        if (isUnconfirmed) {
+          // Automatically transition to 8-digit OTP verification UI!
+          setRegisteredEmail(cleanEmail);
+          setIsVerifying(true);
+          setOtp("");
+          setError(null);
+          setSuccessMsg(`Please enter the 8-digit code sent to ${cleanEmail}`);
+          startResendCooldown();
+          return;
+        }
+
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
 
@@ -108,6 +181,60 @@ export default function LoginPage() {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verifyLoading) return;
+
+    const cleanOtp = otp.trim();
+    if (cleanOtp.length !== 8) {
+      setError("Please enter the complete 8-digit verification code.");
+      return;
+    }
+
+    setVerifyLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const { data, error: verifyError } = await verifyEmailOtp(registeredEmail, cleanOtp);
+      if (verifyError) {
+        setError(verifyError.message || "Failed to verify code. Please check and try again.");
+        return;
+      }
+
+      if (data?.user) {
+        await checkAndRedirect(data.user.id);
+      } else {
+        router.push("/onboarding");
+      }
+    } catch (err: any) {
+      setError(err?.message || "An unexpected error occurred during verification.");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resendLoading) return;
+    setResendLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const { error: resendErr } = await resendSignupOtp(registeredEmail);
+      if (resendErr) {
+        setError(resendErr.message || "Could not resend verification code.");
+      } else {
+        setSuccessMsg("A new 8-digit verification code has been sent!");
+        startResendCooldown();
+      }
+    } catch {
+      setError("Failed to resend code. Please try again shortly.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -137,11 +264,8 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen w-full bg-white dark:bg-black selection:bg-white/30 p-2 transition-all duration-300 lg:h-screen lg:overflow-hidden lg:p-4">
-      
       {/* Left Column (Hero & Background Video) */}
       <div className="relative hidden lg:flex flex-col items-center justify-center px-12 rounded-3xl overflow-hidden shadow-2xl h-full w-[52%] shrink-0">
-        
-        {/* Background Video - No overlays or tint masks */}
         <video 
           autoPlay 
           muted 
@@ -155,7 +279,6 @@ export default function LoginPage() {
           />
         </video>
 
-        {/* Centered Brand Text */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -168,7 +291,7 @@ export default function LoginPage() {
         </motion.div>
       </div>
 
-      {/* Right Column (Sign In Form) */}
+      {/* Right Column */}
       <div className="flex-1 flex flex-col items-center justify-center py-12 lg:py-6 px-4 sm:px-12 lg:px-16 xl:px-24 overflow-y-auto lg:overflow-hidden no-scrollbar">
         <motion.div
           initial={{ opacity: 0 }}
@@ -176,128 +299,276 @@ export default function LoginPage() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="w-full max-w-xl space-y-8 lg:space-y-6 sm:space-y-10"
         >
-          {/* Header */}
-          <div>
-            <h2 className="text-3xl font-medium tracking-tight text-black dark:text-white">Welcome Back</h2>
-            <p className="text-black dark:text-white/40 text-sm mt-1.5">Input your credentials to begin the journey.</p>
-          </div>
-
-          {/* Social Buttons */}
-          <div className="grid grid-cols-2 gap-4">
-            <SocialButton icon={Chrome} label="Google" onClick={handleGoogleSignIn} />
-            <SocialButton icon={Github} label="GitHub" onClick={handleGithubSignIn} />
-          </div>
-
-          {/* Divider */}
-          <div className="relative flex items-center py-2">
-            <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
-            <span className="flex-shrink mx-4 bg-white dark:bg-black px-4 text-xs font-medium text-black dark:text-white/40 uppercase tracking-widest">Or</span>
-            <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
-          </div>
-
-          {/* Error / Lockout Banner */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                key="error"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                className={`p-3 rounded-xl text-xs font-medium text-center flex items-center justify-center gap-2 border ${
-                  isLocked
-                    ? "bg-orange-500/10 border-orange-500/20 text-orange-400"
-                    : "bg-red-500/10 border-red-500/20 text-red-400"
-                }`}
+          {isVerifying ? (
+            /* ─── AUTOMATIC 8-DIGIT OTP VERIFICATION SCREEN ─── */
+            <div className="space-y-6">
+              {/* Back to Form */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsVerifying(false);
+                  setError(null);
+                  setSuccessMsg(null);
+                }}
+                className="inline-flex items-center gap-2 text-xs font-semibold text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
               >
-                {isLocked ? (
-                  <Clock className="w-4 h-4 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                )}
-                <span>{isLocked ? `Locked. Wait ${countdown}s` : error}</span>
-                {!isLocked && error?.toLowerCase().includes("verify your email") && (
-                  <Link
-                    href={`/signup?verify=true&email=${encodeURIComponent(email)}`}
-                    className="underline font-bold text-white hover:opacity-80 ml-1.5 shrink-0"
-                  >
-                    Enter code
-                  </Link>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to log in</span>
+              </button>
 
-          {/* Form */}
-          <form onSubmit={handleEmailSignIn} className="space-y-5">
-            {/* Email Address */}
-            <InputGroup 
-              label="Email" 
-              placeholder="ex. name@squibl.io" 
-              id="email" 
-              value={email} 
-              onChange={(e: any) => setEmail(e.target.value)} 
-              type="email" 
-              required 
-            />
-
-            {/* Password input group with Lucide Eye toggle icon inside and Forgot Link */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-medium text-black dark:text-white">
-                  Password
-                </label>
-                <Link href="/forgot-password" className="text-xs text-black dark:text-white/40 hover:text-black dark:text-white transition-colors">
-                  Forgot?
-                </Link>
+              {/* Header */}
+              <div>
+                <h2 className="text-3xl font-medium tracking-tight text-black dark:text-white">Verify Your Email</h2>
+                <p className="text-black dark:text-white/40 text-sm mt-1.5">
+                  Enter the 8-digit verification code sent to your email to activate your account.
+                </p>
               </div>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Secure your account"
-                  value={password}
-                  onChange={(e: any) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="w-full bg-gray-100 dark:bg-brand-gray border-none rounded-xl h-11 px-4 text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-all duration-300 text-sm"
-                />
+
+              {/* Registered Email Pill */}
+              <div className="flex items-center gap-2.5 bg-gray-100 dark:bg-brand-gray border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm text-black dark:text-white">
+                <Mail className="w-4 h-4 text-black/40 dark:text-white/40 shrink-0" />
+                <span className="font-medium truncate flex-1">{registeredEmail}</span>
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-black dark:text-white/40 hover:text-black dark:text-white transition-colors cursor-pointer"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => {
+                    setIsVerifying(false);
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-xs font-semibold text-black dark:text-white hover:underline cursor-pointer shrink-0"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  Change
                 </button>
               </div>
-            </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading || isLocked}
-              className="w-full h-14 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-xl hover:bg-black/90 dark:hover:bg-white/90 active:scale-[0.98] mt-4 transition-all duration-300 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="h-5 w-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-              ) : (
-                "Log In"
+              {/* Success Banner */}
+              {successMsg && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs text-center font-medium flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
               )}
-            </button>
-          </form>
 
-          {/* Footer Links & Contact */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
-            <p className="text-sm text-black dark:text-white/40">
-              First time here?{" "}
-              <Link href="/signup" className="text-black dark:text-white hover:underline transition-colors ml-1">
-                Sign up for free
-              </Link>
-            </p>
-            <p className="text-[11px] text-black dark:text-white/20">
-              Contact: <span className="text-black dark:text-white/40 lowercase tracking-normal">squiblapp@gmail.com</span>
-            </p>
-          </div>
+              {/* Error Banner */}
+              {error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs text-center font-bold">
+                  {error}
+                </div>
+              )}
+
+              {/* OTP Form */}
+              <form onSubmit={handleVerifyOtp} className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="otp-input" className="text-sm font-medium text-black dark:text-white block">
+                    8-Digit Verification Code
+                  </label>
+
+                  {/* 8-Cell segmented input driven by single underlying input */}
+                  <div className="relative">
+                    <input
+                      id="otp-input"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="one-time-code"
+                      maxLength={8}
+                      value={otp}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        setOtp(val);
+                        setError(null);
+                      }}
+                      autoFocus
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+
+                    <div className="grid grid-cols-8 gap-1.5 sm:gap-2">
+                      {Array.from({ length: 8 }).map((_, idx) => {
+                        const digit = otp[idx] || "";
+                        const isCurrent = idx === otp.length;
+                        const isFilled = Boolean(digit);
+                        return (
+                          <div
+                            key={idx}
+                            className={`h-12 sm:h-14 rounded-xl flex items-center justify-center text-lg sm:text-xl font-bold font-mono transition-all duration-200 border ${
+                              isCurrent
+                                ? "border-black dark:border-white ring-2 ring-black/10 dark:ring-white/20 bg-white dark:bg-black text-black dark:text-white"
+                                : isFilled
+                                ? "border-gray-300 dark:border-white/30 bg-gray-50 dark:bg-white/5 text-black dark:text-white"
+                                : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-brand-gray text-black/30 dark:text-white/30"
+                            }`}
+                          >
+                            {digit}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-xs text-black/40 dark:text-white/30">
+                    Paste or type the 8 digits received in your confirmation email.
+                  </p>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={otp.length !== 8 || verifyLoading}
+                  className="w-full h-14 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-xl hover:bg-black/90 dark:hover:bg-white/90 active:scale-[0.98] transition-all duration-300 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                >
+                  {verifyLoading ? (
+                    <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "Verify & Continue"
+                  )}
+                </button>
+              </form>
+
+              {/* Resend Action */}
+              <div className="flex flex-col items-center gap-2 pt-2 text-sm text-black/60 dark:text-white/60">
+                <div className="flex items-center gap-1.5">
+                  <span>Didn't receive the code?</span>
+                  {resendCooldown > 0 ? (
+                    <span className="font-semibold text-black dark:text-white">
+                      Resend in {resendCooldown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resendLoading}
+                      className="font-semibold text-black dark:text-white hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      {resendLoading ? "Sending..." : "Resend code"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ─── STANDARD LOGIN FORM ─── */
+            <>
+              {/* Header */}
+              <div>
+                <h2 className="text-3xl font-medium tracking-tight text-black dark:text-white">Welcome Back</h2>
+                <p className="text-black dark:text-white/40 text-sm mt-1.5">Enter your details to sign in.</p>
+              </div>
+
+              {/* Social Buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <SocialButton icon={Chrome} label="Google" onClick={handleGoogleSignIn} />
+                <SocialButton icon={Github} label="GitHub" onClick={handleGithubSignIn} />
+              </div>
+
+              {/* Divider */}
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
+                <span className="flex-shrink mx-4 bg-white dark:bg-black px-4 text-xs font-medium text-black dark:text-white/40 uppercase tracking-widest">Or</span>
+                <div className="flex-grow border-t border-gray-200 dark:border-white/10"></div>
+              </div>
+
+              {/* Error / Lockout Banner */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    className={`p-3 rounded-xl text-xs font-medium text-center flex items-center justify-center gap-2 border ${
+                      isLocked
+                        ? "bg-orange-500/10 border-orange-500/20 text-orange-400"
+                        : "bg-red-500/10 border-red-500/20 text-red-400"
+                    }`}
+                  >
+                    {isLocked ? (
+                      <Clock className="w-4 h-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    )}
+                    <span>{isLocked ? `Locked. Wait ${countdown}s` : error}</span>
+                    {!isLocked && error?.toLowerCase().includes("verify your email") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRegisteredEmail(email.trim().toLowerCase());
+                          setIsVerifying(true);
+                          setOtp("");
+                          setError(null);
+                        }}
+                        className="underline font-bold text-white hover:opacity-80 ml-1.5 shrink-0 cursor-pointer"
+                      >
+                        Enter code
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Form */}
+              <form onSubmit={handleEmailSignIn} className="space-y-5">
+                {/* Email Address */}
+                <InputGroup
+                  label="Email"
+                  placeholder="ex. alex.s@aurora.io"
+                  id="email"
+                  value={email}
+                  onChange={(e: any) => setEmail(e.target.value)}
+                  type="email"
+                  required
+                />
+
+                {/* Password input group */}
+                <div className="flex flex-col gap-1.5 w-full">
+                  <div className="flex justify-between items-center">
+                    <label htmlFor="password" className="text-sm font-medium text-black dark:text-white">
+                      Password
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e: any) => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      className="w-full bg-gray-100 dark:bg-brand-gray border-none rounded-xl h-11 px-4 text-black dark:text-white placeholder:text-black/40 dark:placeholder:text-white/40 focus:ring-2 focus:ring-black/10 dark:focus:ring-white/20 outline-none transition-all duration-300 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-black dark:text-white/40 hover:text-black dark:text-white transition-colors cursor-pointer"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading || isLocked}
+                  className="w-full h-14 bg-black dark:bg-white text-white dark:text-black font-semibold rounded-xl hover:bg-black/90 dark:hover:bg-white/90 active:scale-[0.98] mt-4 transition-all duration-300 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="h-5 w-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "Sign In"
+                  )}
+                </button>
+              </form>
+
+              {/* Footer Link */}
+              <p className="text-sm text-black dark:text-white/40">
+                Don't have an account?{" "}
+                <Link href="/signup" className="text-black dark:text-white hover:underline transition-colors ml-1">
+                  Create profile
+                </Link>
+              </p>
+            </>
+          )}
         </motion.div>
       </div>
     </main>
@@ -309,7 +580,7 @@ function SocialButton({ icon: Icon, label, onClick }: { icon: any; label: string
     <button 
       type="button" 
       onClick={onClick} 
-      className="flex items-center justify-center gap-2 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-xl h-12 hover:bg-black/5 dark:bg-white/5 transition-colors cursor-pointer text-sm font-semibold text-black dark:text-white w-full"
+      className="flex items-center justify-center gap-2 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-xl h-12 hover:bg-black/5 dark:bg-white/5 transition-colors cursor-pointer text-sm font-semibold text-black dark:text-white"
     >
       <Icon className="w-4 h-4 shrink-0" />
       <span>{label}</span>
