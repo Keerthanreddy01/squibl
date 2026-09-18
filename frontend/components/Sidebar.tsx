@@ -67,13 +67,13 @@ export default function Sidebar({ isSidebarOpen, setIsSidebarOpen, onMobileCreat
             >
               {isExpanded ? (
                 <div className="flex items-center">
-                  <img src="/newlogo.png" alt="Logo" className="w-8 h-8 mr-3 rounded-xl drop-shadow-sm" />
+                  <img src="/squibl-logo.png" alt="Logo" className="w-8 h-8 mr-3 rounded-xl drop-shadow-sm" />
                   <span className="text-[17px] font-bold text-black dark:text-white tracking-tight whitespace-nowrap">
                     Squibl
                   </span>
                 </div>
               ) : (
-                <img src="/newlogo.png" alt="Logo" className="w-9 h-9 rounded-xl drop-shadow-sm" />
+                <img src="/squibl-logo.png" alt="Logo" className="w-9 h-9 rounded-xl drop-shadow-sm" />
               )}
             </Link>
           </div>

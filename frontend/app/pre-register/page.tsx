@@ -220,7 +220,7 @@ function WaitlistContent() {
   return (
     <div className="flex flex-col items-center text-center px-4 w-full max-w-lg pointer-events-auto">
       <div className="mb-10">
-        <img src="/newlogo.png" alt="Squibl" className="w-16 h-16 opacity-90 mx-auto" />
+        <img src="/squibl-logo.png" alt="Squibl" className="w-16 h-16 opacity-90 mx-auto" />
       </div>
 
       {isCheckingStorage ? (
@@ -360,7 +360,7 @@ export default function PreRegisterPage() {
       {/* Header */}
       <header className="absolute top-0 w-full flex justify-between items-center px-6 sm:px-10 py-6 z-30 pointer-events-none">
         <Link href="/dashboard/home" className="flex items-center gap-2 group pointer-events-auto">
-          <img src="/newlogo.png" alt="CS" className="w-4 h-4 opacity-60 group-hover:opacity-100 transition-opacity" />
+          <img src="/squibl-logo.png" alt="Squibl" className="w-4 h-4 opacity-60 group-hover:opacity-100 transition-opacity" />
           <span className="text-white/50 text-[13px] group-hover:text-white transition-colors">Squibl</span>
         </Link>
         {user ? (
@@ -386,7 +386,7 @@ export default function PreRegisterPage() {
           </div>
         ) : !user ? (
           <div className="flex flex-col items-center justify-center p-8 sm:p-10 bg-neutral-900/40 border border-white/10 rounded-2xl max-w-sm w-[90%] text-center pointer-events-auto shadow-2xl backdrop-blur-md">
-            <img src="/newlogo.png" alt="Squibl" className="w-16 h-16 opacity-90 mx-auto mb-6" />
+            <img src="/squibl-logo.png" alt="Squibl" className="w-16 h-16 opacity-90 mx-auto mb-6" />
             <h2 className="text-xl sm:text-2xl font-bold mb-3 text-white">Join the Waitlist</h2>
             <p className="text-neutral-400 text-sm mb-6 leading-relaxed">
               Please sign in or create an account to pre-register and reserve your spot.

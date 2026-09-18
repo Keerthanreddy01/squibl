@@ -28,8 +28,8 @@ export const metadata: Metadata = {
     "Squibl is the developer network for builders. Find teammates, share your builds, and grow with people who ship.",
   generator: "next",
   icons: {
-    icon: "/newlogo.png",
-    apple: "/newlogo.png",
+    icon: "/squibl-logo.png",
+    apple: "/squibl-logo.png",
   },
   openGraph: {
     title: "Squibl - Build together, ship faster",

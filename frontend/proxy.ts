@@ -24,7 +24,7 @@ export function proxy(request: NextRequest) {
     .filter(Boolean);
 
   const isApi = pathname.startsWith('/api/');
-  const isStatic = pathname.startsWith('/_next/') || pathname === '/favicon.ico' || pathname.startsWith('/newlogo.png');
+  const isStatic = pathname.startsWith('/_next/') || pathname === '/favicon.ico' || pathname.startsWith('/newlogo.png') || pathname.startsWith('/squibl-logo.png') || pathname.startsWith('/website-image-1.png') || pathname.startsWith('/smash-image.png');
   // ── Waitlist Gate Disabled ─────────────────────────────────────────────────
   // Redirect logic removed to allow full application navigation.
 

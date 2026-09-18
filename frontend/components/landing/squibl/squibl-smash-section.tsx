@@ -121,8 +121,8 @@ export function SquiblSmashSection() {
         }}
         className="relative z-10 w-full max-w-[1400px] flex items-center justify-center overflow-visible origin-top"
       >
-        <img 
-          src="/smash-image.png" 
+        <img
+          src="/website-image-1.png"
           alt="Squibl Smash" 
           className="w-full md:w-[110%] h-auto object-cover object-center drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)]" 
           style={{

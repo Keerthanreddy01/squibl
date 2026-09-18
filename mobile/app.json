@@ -3,7 +3,11 @@
     "name": "mobile",
     "slug": "mobile",
     "scheme": "squibl",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "expo-web-browser",
+      "expo-asset"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/squibl-logo.png",
@@ -15,7 +19,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.keerthanreddy01.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "backgroundColor": "#ffffff",
@@ -32,6 +40,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6ba8e887-1251-4195-baf6-43105fd45e97"
+      }
     }
   }
 }

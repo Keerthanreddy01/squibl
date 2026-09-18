@@ -35,5 +35,8 @@
     "type": "git",
     "url": "https://github.com/Keerthanreddy01/squibl-web.git"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "~19.2.4"
+  }
 }

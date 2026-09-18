@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 
 const supabaseUrl =
   process.env.EXPO_PUBLIC_SUPABASE_URL ||
@@ -32,3 +32,14 @@ export const supabase = createClient(
     },
   }
 );
+
+export function isEmailVerified(user: User | null | undefined, requireEmailConfirmation = false): boolean {
+  if (!user) return false;
+
+  const providers = user.app_metadata?.providers;
+  const provider = user.app_metadata?.provider;
+  const usesEmailAuth = requireEmailConfirmation || provider === 'email' || providers?.includes('email');
+
+  if (!usesEmailAuth) return true;
+  return Boolean(user.email_confirmed_at ?? user.confirmed_at);
+}
