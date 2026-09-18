@@ -1,63 +1,130 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 interface UniqueEffectsSectionProps {
   panelImage?: string;
 }
 
 export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  // Parallax scroll driver
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+
+  // Parallax for the hand/phone: floats in smoothly from above, subtle perspective tilt
+  const handY = useTransform(scrollYProgress, [0, 0.5, 1], [-90, 0, 75]);
+  const handRotate = useTransform(scrollYProgress, [0, 0.5, 1], [-3.5, 0, 2.5]);
+  const handScale = useTransform(scrollYProgress, [0, 0.5, 1], [0.94, 1, 1.02]);
+
+  // Content parallax moves at a distinct rate for natural multi-plane depth
+  const contentY = useTransform(scrollYProgress, [0, 0.5, 1], [50, 0, -40]);
+
   return (
     <section
+      ref={sectionRef}
       id="mobile-app"
-      className="relative w-full bg-white text-neutral-900 overflow-hidden font-sans pt-12 sm:pt-16 lg:pt-20 pb-0"
+      className="relative w-full bg-white text-neutral-900 overflow-hidden font-sans pt-14 sm:pt-20 lg:pt-24 pb-4 sm:pb-8"
     >
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400;1,500;1,600&display=swap');
+        .font-playfair-italic {
+          font-family: 'Playfair Display', serif;
+          font-style: italic;
+        }
+      `}} />
+
       <div className="max-w-[1400px] mx-auto px-6 sm:px-10 lg:px-16 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-end">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-end">
           
-          {/* Left Side: Hand holding iPhone positioned on the left */}
+          {/* Left Side: Hand holding iPhone with smooth Parallax */}
           <motion.div
-            initial={{ opacity: 0, x: -30, scale: 0.98 }}
-            whileInView={{ opacity: 1, x: 0, scale: 1 }}
-            viewport={{ once: true, margin: "-10%" }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-6 xl:col-span-6 flex justify-center lg:justify-start items-end relative -mb-1"
+            style={{ y: handY, rotate: handRotate, scale: handScale }}
+            className="lg:col-span-6 xl:col-span-6 flex justify-center lg:justify-start items-end relative -mb-2 select-none"
           >
-            <div className="relative w-full max-w-[480px] sm:max-w-[520px] lg:max-w-none flex justify-center lg:justify-start">
+            {/* Ambient soft glow behind phone */}
+            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] bg-red-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative w-full max-w-[480px] sm:max-w-[540px] lg:max-w-none flex justify-center lg:justify-start">
               <img
-                src="/hand-iphone.png?v=4"
-                alt="Squibl Mobile App"
-                className="w-auto max-w-full h-auto max-h-[460px] sm:max-h-[520px] lg:max-h-[600px] xl:max-h-[650px] object-contain select-none pointer-events-none drop-shadow-[0_25px_40px_rgba(0,0,0,0.12)]"
+                src="/hand-iphone.png?v=5"
+                alt="Squibl Mobile App Preview"
+                className="w-auto max-w-full h-auto max-h-[480px] sm:max-h-[550px] lg:max-h-[640px] xl:max-h-[700px] object-contain select-none pointer-events-none drop-shadow-[0_25px_40px_rgba(0,0,0,0.12)]"
               />
             </div>
           </motion.div>
 
-          {/* Right Side: Clean, Minimal Typography & App Store / Play Store Badges */}
+          {/* Right Side: Editorial Headline, Reference-style Quote & Minimal Store Buttons */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-10%" }}
-            transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-6 xl:col-span-6 flex flex-col justify-center items-start pb-16 sm:pb-20 lg:pb-24 xl:pb-28 lg:pl-6 xl:pl-10"
+            style={{ y: contentY }}
+            className="lg:col-span-6 xl:col-span-6 flex flex-col justify-center items-start pb-14 sm:pb-18 lg:pb-24 xl:pb-28 lg:pl-4 xl:pl-8"
           >
-            <span className="text-[11px] sm:text-xs font-semibold tracking-[0.25em] uppercase text-neutral-400 mb-3 select-none">
-              Mobile App
-            </span>
+            {/* 1. Reference Screenshot Quote / Social Proof */}
+            <div className="flex items-center gap-3.5 mb-7">
+              <div className="flex -space-x-2.5 overflow-hidden">
+                <img
+                  src="/img-1.webp"
+                  alt="Builder"
+                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover shadow-sm"
+                />
+                <img
+                  src="/img-2.webp"
+                  alt="Builder"
+                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover shadow-sm"
+                />
+                <img
+                  src="/img-3.webp"
+                  alt="Builder"
+                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover shadow-sm"
+                />
+              </div>
+              <div className="flex flex-col text-left">
+                <p className="text-xs sm:text-sm text-neutral-700 font-medium leading-tight">
+                  <strong className="font-semibold text-neutral-950">12,400+ builders</strong> already shipping together.
+                </p>
+                <div className="relative inline-block w-fit mt-0.5">
+                  <span className="text-xs sm:text-sm font-semibold text-neutral-900">
+                    Join them!
+                  </span>
+                  {/* Hand-drawn doodle accent underline matching reference */}
+                  <svg
+                    className="absolute -bottom-1 left-0 w-full h-2 text-[#dc2626]"
+                    viewBox="0 0 70 8"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M1 5.5C12 2.5 24 6.5 35 3.5C46 0.5 58 5.5 69 2.5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-neutral-950 leading-[1.08] mb-4">
-              Download the app
+            {/* 2. Editorial Headline (Styled like Reference Screenshot 2) */}
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-neutral-950 leading-[1.05] mb-5">
+              Your new <span className="font-playfair-italic font-normal text-[#dc2626]">favorite</span> developer app
             </h2>
 
+            {/* 3. Subtitle */}
             <p className="text-base sm:text-lg text-neutral-600 leading-relaxed max-w-[460px] mb-8 font-normal">
-              Find teammates, follow live builds, and collaborate with creators wherever you are.
+              Find teammates, follow live builds, and collaborate with creators wherever you are. It&apos;s that simple.
             </p>
 
-            {/* App Store & Google Play Store Buttons */}
+            {/* 4. App Store & Google Play Store Buttons (Clean, Minimal, No Emojis) */}
             <div className="flex flex-wrap items-center gap-3.5 sm:gap-4 w-full sm:w-auto">
               {/* Apple App Store */}
               <a
                 href="#download-ios"
-                className="inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-black text-white hover:bg-neutral-800 transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 group border border-black"
+                className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-black text-white hover:bg-neutral-800 transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95 group border border-black"
               >
                 <svg
                   className="w-6 h-6 fill-current text-white shrink-0 group-hover:scale-105 transition-transform"
@@ -79,7 +146,7 @@ export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
               {/* Google Play Store */}
               <a
                 href="#download-android"
-                className="inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-black text-white hover:bg-neutral-800 transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 group border border-black"
+                className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-black text-white hover:bg-neutral-800 transition-all duration-300 shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95 group border border-black"
               >
                 <svg
                   className="w-5 h-5 fill-current text-white shrink-0 group-hover:scale-105 transition-transform"
@@ -99,10 +166,16 @@ export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
               </a>
             </div>
 
-            {/* Subtle Minimal Version Metadata */}
-            <div className="flex items-center gap-2.5 mt-6 text-xs text-neutral-400 font-medium select-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span>iOS 16+ & Android 10+ supported</span>
+            {/* 5. Minimal Ecosystem Row (Inspired by Reference Screenshot 2 bottom row) */}
+            <div className="flex items-center gap-6 mt-9 pt-6 border-t border-neutral-200/80 text-neutral-400 select-none text-xs font-mono tracking-wider">
+              <span className="flex items-center gap-1.5 text-neutral-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                iOS 16+ &amp; Android 10+
+              </span>
+              <span className="text-neutral-300">•</span>
+              <span>Free to download</span>
+              <span className="text-neutral-300">•</span>
+              <span>Instant Sync</span>
             </div>
           </motion.div>
         </div>
@@ -110,4 +183,3 @@ export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
     </section>
   );
 }
-
