@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useState, useRef, useCallback } from "react";
+import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
 interface UniqueEffectsSectionProps {
@@ -15,19 +15,60 @@ export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Buttery-smooth scroll parallax driver
+  // 1. Ultra-smooth Scroll Physics with Spring Inertia
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start end", "end start"],
   });
 
-  // Parallax: hand floats into view smoothly from above with soft tilt
-  const handY = useTransform(scrollYProgress, [0, 0.5, 1], [-80, 0, 70]);
-  const handRotate = useTransform(scrollYProgress, [0, 0.5, 1], [-2.5, 0, 2]);
-  const handScale = useTransform(scrollYProgress, [0, 0.5, 1], [0.96, 1, 1.02]);
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 85,
+    damping: 24,
+    restDelta: 0.001,
+  });
 
-  // Form parallax for multi-layer depth
-  const formY = useTransform(scrollYProgress, [0, 0.5, 1], [35, 0, -25]);
+  // Vertical gliding & perspective floating from above
+  const scrollHandY = useTransform(smoothProgress, [0, 0.5, 1], [-110, 0, 95]);
+  const scrollHandRotateZ = useTransform(smoothProgress, [0, 0.5, 1], [-4, 0, 3.5]);
+  const scrollHandScale = useTransform(smoothProgress, [0, 0.45, 1], [0.93, 1.01, 1.03]);
+  const scrollHandPitch = useTransform(smoothProgress, [0, 0.5, 1], [8, 0, -6]);
+
+  // Form parallax offset for multi-planar depth
+  const formY = useTransform(smoothProgress, [0, 0.5, 1], [45, 0, -35]);
+
+  // 2. Interactive 3D Cursor Physics (Next-Level Depth)
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const springConfig = { damping: 24, stiffness: 130 };
+  const cursorRotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [8.5, -8.5]), springConfig);
+  const cursorRotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-11, 11]), springConfig);
+  const cursorTranslateX = useSpring(useTransform(mouseX, [-0.5, 0.5], [-16, 16]), springConfig);
+  const cursorTranslateY = useSpring(useTransform(mouseY, [-0.5, 0.5], [-14, 14]), springConfig);
+
+  // Dynamic light reflection sheen across glass face
+  const glareOpacity = useSpring(useTransform(mouseX, [-0.5, 0, 0.5], [0.05, 0.22, 0.32]), springConfig);
+  const glareX = useSpring(useTransform(mouseX, [-0.5, 0.5], ["-40%", "140%"]), springConfig);
+  const glareRotate = useSpring(useTransform(mouseY, [-0.5, 0.5], [15, 25]), springConfig);
+
+  // Dynamic multi-plane contact shadow
+  const shadowX = useSpring(useTransform(mouseX, [-0.5, 0.5], [22, -22]), springConfig);
+  const shadowY = useSpring(useTransform(mouseY, [-0.5, 0.5], [18, -18]), springConfig);
+  const shadowScale = useSpring(useTransform(mouseY, [-0.5, 0.5], [0.95, 1.06]), springConfig);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!sectionRef.current) return;
+    const rect = sectionRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    mouseX.set(x);
+    mouseY.set(y);
+  }, [mouseX, mouseY]);
+
+  const handleMouseLeave = useCallback(() => {
+    mouseX.set(0);
+    mouseY.set(0);
+  }, [mouseX, mouseY]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,26 +108,79 @@ export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
     <section
       ref={sectionRef}
       id="waitlist"
-      className="relative w-full bg-white text-neutral-900 overflow-hidden font-sans pt-12 sm:pt-16 lg:pt-20 pb-0"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative w-full bg-white text-neutral-900 overflow-hidden font-sans pt-12 sm:pt-16 lg:pt-20 pb-0 select-none"
+      style={{ perspective: "1400px" }}
     >
       <div className="max-w-[1400px] mx-auto px-6 sm:px-10 lg:px-16 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-end">
           
-          {/* Left Side: Hand holding iPhone with buttery smooth Parallax & lens blur */}
+          {/* Left Side: Next-Level 3D Parallax Hand & Phone */}
           <motion.div
-            style={{ y: handY, rotate: handRotate, scale: handScale }}
-            className="lg:col-span-6 xl:col-span-6 flex justify-center lg:justify-start items-end relative -mb-1 select-none"
+            style={{
+              y: scrollHandY,
+              x: cursorTranslateX,
+              rotateZ: scrollHandRotateZ,
+              rotateX: cursorRotateX,
+              rotateY: cursorRotateY,
+              scale: scrollHandScale,
+              transformStyle: "preserve-3d",
+            }}
+            className="lg:col-span-6 xl:col-span-6 flex justify-center lg:justify-start items-end relative -mb-1 cursor-pointer"
           >
-            {/* Ambient soft glow */}
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] bg-red-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+            {/* Dynamic ambient bloom that shifts behind the phone */}
+            <motion.div
+              style={{
+                x: useTransform(mouseX, [-0.5, 0.5], [30, -30]),
+                y: useTransform(mouseY, [-0.5, 0.5], [25, -25]),
+              }}
+              className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] bg-red-500/[0.07] rounded-full blur-3xl pointer-events-none"
+            />
 
-            <div className="relative w-full max-w-[480px] sm:max-w-[540px] lg:max-w-none flex justify-center lg:justify-start">
+            {/* Dynamic 3D reactive contact shadow under the device */}
+            <motion.div
+              style={{
+                x: shadowX,
+                y: shadowY,
+                scale: shadowScale,
+              }}
+              className="absolute bottom-2 left-1/4 w-[60%] h-14 bg-black/20 rounded-[100%] blur-2xl pointer-events-none"
+            />
+
+            {/* Phone & Hand Container with subtle idle float */}
+            <motion.div
+              animate={{
+                y: [0, -7, 0],
+              }}
+              transition={{
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="relative w-full max-w-[480px] sm:max-w-[540px] lg:max-w-none flex justify-center lg:justify-start group"
+              style={{ transformStyle: "preserve-3d" }}
+            >
+              {/* Phone image with lens blur edge */}
               <img
-                src="/hand-iphone.png?v=7"
+                src="/hand-iphone.png?v=8"
                 alt="Squibl Mobile Preview"
-                className="w-auto max-w-full h-auto max-h-[460px] sm:max-h-[530px] lg:max-h-[620px] xl:max-h-[680px] object-contain select-none pointer-events-none drop-shadow-[0_25px_40px_rgba(0,0,0,0.12)]"
+                className="w-auto max-w-full h-auto max-h-[470px] sm:max-h-[540px] lg:max-h-[630px] xl:max-h-[700px] object-contain select-none pointer-events-none drop-shadow-[0_26px_50px_rgba(0,0,0,0.16)]"
               />
-            </div>
+
+              {/* Dynamic specular glass light reflection passing across phone face */}
+              <motion.div
+                style={{
+                  left: glareX,
+                  opacity: glareOpacity,
+                  rotate: glareRotate,
+                }}
+                className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-white/25 to-transparent w-full h-full mix-blend-overlay blur-[1px]"
+              />
+
+              {/* Soft lens blur / depth-of-field transition at bottom edge */}
+              <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-white via-white/70 to-transparent pointer-events-none" />
+            </motion.div>
           </motion.div>
 
           {/* Right Side: Join the waitlist Form (Matching Reference Screenshot 2) */}
