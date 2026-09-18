@@ -10,11 +10,11 @@ export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
   return (
     <section
       id="mobile-app"
-      className="relative w-full bg-white text-neutral-900 overflow-hidden font-sans pt-8 sm:pt-12 lg:pt-14 pb-16 sm:pb-24 lg:pb-28"
+      className="relative w-full bg-white text-neutral-900 overflow-hidden font-sans pt-8 sm:pt-12 lg:pt-14 pb-8 sm:pb-12 lg:pb-16"
     >
       <div className="max-w-[1440px] mx-auto px-6 sm:px-10 lg:px-16 relative z-10 flex flex-col items-center">
         {/* Top Header Row inside Section (matching reference composition) */}
-        <div className="w-full flex items-center justify-between mb-6 sm:mb-12">
+        <div className="w-full flex items-center justify-between mb-4 sm:mb-8">
           {/* Top Left: Editorial Brand Typography */}
           <div className="flex items-center gap-2 select-none">
             <span className="font-serif italic text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-neutral-950 font-display">
@@ -40,16 +40,16 @@ export function UniqueEffectsSection({}: UniqueEffectsSectionProps) {
 
         {/* Center Visual: Large Hand holding iPhone */}
         <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.97 }}
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, margin: "-10%" }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full flex items-center justify-center relative py-4 sm:py-8 lg:py-10"
+          className="w-full flex items-center justify-center relative pt-2 sm:pt-4 pb-0"
         >
           <img
-            src="/hand-iphone.png"
+            src="/hand-iphone.png?v=2"
             alt="Squibl Mobile App Preview"
-            className="w-auto max-w-full h-auto max-h-[560px] sm:max-h-[680px] lg:max-h-[820px] object-contain select-none pointer-events-none drop-shadow-xl"
+            className="w-auto max-w-full h-auto max-h-[480px] sm:max-h-[540px] lg:max-h-[620px] object-contain select-none pointer-events-none drop-shadow-2xl"
           />
         </motion.div>
       </div>
