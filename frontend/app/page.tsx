@@ -11,7 +11,6 @@ import { HeroFolioTransition } from "@/components/landing/hero-folio-transition"
 import { SquiblSmashSection } from "@/components/landing/squibl/squibl-smash-section";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
-import { IntegrationsSection } from "@/components/landing/integrations-section";
 import { UniqueEffectsSection } from "@/components/landing/unique-effects-section";
 import { TestimonialsSection } from "@/components/landing/testimonials-section";
 import { ScrollingRevealSection } from "@/components/landing/scrolling-reveal-section";
@@ -68,7 +67,6 @@ export default function Home() {
         <SquiblSmashSection />
         <FeaturesSection />
         <HowItWorksSection />
-        <IntegrationsSection />
         <UniqueEffectsSection />
         <TestimonialsSection />
         <ScrollingRevealSection />
