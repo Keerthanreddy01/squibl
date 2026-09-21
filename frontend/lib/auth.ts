@@ -243,11 +243,11 @@ export async function signOut() {
   }
 }
 
-export async function resetPasswordForEmail(email: string) {
+export async function resetPasswordForEmail(email: string, customRedirectTo?: string) {
   try {
-    const redirectTo = typeof window !== 'undefined'
-      ? `${window.location.origin}/settings`
-      : undefined
+    const redirectTo = customRedirectTo || (typeof window !== 'undefined'
+      ? `${window.location.origin}/update-password`
+      : undefined)
 
     const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo,
@@ -255,6 +255,29 @@ export async function resetPasswordForEmail(email: string) {
 
     if (error) throw error
     await logSecurityEvent({ event: 'password_reset_requested', metadata: { email } })
+    return { data, error: null }
+  } catch (error: any) {
+    return { data: null, error: { message: mapAuthError(error) } }
+  }
+}
+
+export async function updatePassword(newPassword: string) {
+  try {
+    const strength = checkPasswordStrength(newPassword)
+    if (strength.score < 4) {
+      return { data: null, error: { message: `Password needs: ${strength.errors.join(', ')}.` } }
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    })
+
+    if (error) throw error
+
+    if (data.user) {
+      await logSecurityEvent({ uid: data.user.id, event: 'password_reset_completed', method: 'email' })
+    }
+
     return { data, error: null }
   } catch (error: any) {
     return { data: null, error: { message: mapAuthError(error) } }

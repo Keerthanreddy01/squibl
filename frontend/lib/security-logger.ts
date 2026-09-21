@@ -23,6 +23,7 @@ export type AuthEventType =
   | 'sign_up_success'
   | 'sign_out'
   | 'password_reset_requested'
+  | 'password_reset_completed'
   | 'profile_updated'
 
 export interface AuthEventPayload {
