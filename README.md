@@ -1,35 +1,61 @@
 <div align="center">
 
+<img src="https://res.cloudinary.com/aovh9hgj/image/upload/v1790094012/squibl_logo_1.png" alt="Squibl Logo" width="120" />
+
 # Squibl
 
-**Squibl — Where developers find teammates, build projects, and grow together**
+### Where developers find teammates, build projects, and grow together
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-squibl.vercel.app-success?style=flat-square&logo=vercel)](https://squibl.vercel.app)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-emerald?style=flat-square&logo=supabase)](https://supabase.com/)
-[![Express](https://img.shields.io/badge/Express-4-grey?style=flat-square&logo=express)](https://expressjs.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/Keerthanreddy01/squibl-web?style=flat-square)](https://github.com/Keerthanreddy01/squibl-web/stargazers)
+<p>
+  <a href="https://squibl.online"><img src="https://img.shields.io/badge/Live_Demo-squibl.online-success?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo"/></a>
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js"/>
+  <img src="https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React"/>
+  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase"/>
+  <img src="https://img.shields.io/badge/Express-4-black?style=flat-square&logo=express&logoColor=white" alt="Express"/>
+  <img src="https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"/>
+</p>
+
+<p>
+  <img src="https://img.shields.io/github/stars/Keerthanreddy01/squibl-web?style=flat-square&color=yellow" alt="Stars"/>
+  <img src="https://img.shields.io/github/last-commit/Keerthanreddy01/squibl-web?style=flat-square" alt="Last Commit"/>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT"/></a>
+</p>
+
+[**Live Demo**](https://squibl.vercel.app) · [**Report a Bug**](https://github.com/Keerthanreddy01/squibl-web/issues) · [**Request a Feature**](https://github.com/Keerthanreddy01/squibl-web/issues)
 
 </div>
 
 ---
 
-## What is Squibl?
+## Overview
 
-Squibl is a platform engineered for software developers, designers, and tech professionals to connect, form teams, and build together. It combines a real-time social feed, professional portfolios, project showcases, and hackathon team-building workflows into a single hub — think LinkedIn meets GitHub meets Devpost.
+**Squibl** is a platform built for software developers, designers, and tech professionals to connect, form teams, and build together. It unifies a real-time social feed, professional portfolios, project showcases, and hackathon team-building workflows into a single hub — think **LinkedIn meets GitHub meets Devpost**.
 
-The project is a **monorepo** with two independently deployable services: a **Next.js 16 frontend** (deployed on Vercel) and an **Express/Node.js backend API** backed by **Supabase (PostgreSQL, Supabase Auth, Storage, and Realtime)**.
+The project is structured as a **monorepo** with two independently deployable services:
+
+| Service | Description | Deployment |
+|---|---|---|
+| **Frontend** | Next.js 16 application (App Router) | Vercel |
+| **Backend** | Express / Node.js REST API | Any Node host |
+| **Data Layer** | Supabase — PostgreSQL, Auth, Storage, Realtime | Supabase Cloud |
 
 ---
 
 ## Table of Contents
 
+- [Overview](#overview)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Database Setup](#1-database-setup)
+  - [Frontend Setup](#2-set-up-the-frontend)
+  - [Backend Setup](#3-set-up-the-backend)
 - [Folder Structure](#folder-structure)
 - [Scripts Reference](#scripts-reference)
 - [Contributing](#contributing)
@@ -39,30 +65,44 @@ The project is a **monorepo** with two independently deployable services: a **Ne
 
 ## Features
 
-- **Real-Time Feed** — Community updates, project launches, and technical discussions
-- **Developer Profiles** — Portfolios with tech stacks, GitHub metrics, and availability status
-- **Project Showcase** — Dedicated pages to demo and iterate on software projects
-- **Hackathon Teambuilding** — Discover and assemble multidisciplinary teams for competitions
-- **Direct Messaging** — Peer-to-peer conversations between builders powered by Supabase Realtime
-- **Smart Search & Filtering** — Find developers by role, stack, and availability
-- **Security-First** — Strict PostgreSQL Row Level Security (RLS), input sanitization (DOMPurify), Cloudflare Turnstile bot protection, security event logging
+| | |
+|---|---|
+| 🟢 **Real-Time Feed** | Community updates, project launches, and technical discussions, powered live via Supabase Realtime |
+| 👤 **Developer Profiles** | Rich portfolios with tech stacks, GitHub metrics, and availability status |
+| 🚀 **Project Showcase** | Dedicated pages for developers to demo and iterate on their software projects |
+| 🤝 **Hackathon Teambuilding** | Discover and assemble multidisciplinary teams for competitions |
+| 💬 **Direct Messaging** | Peer-to-peer conversations between builders, powered by Supabase Realtime |
+| 🔍 **Smart Search & Filtering** | Find developers by role, tech stack, and availability |
+| 🔒 **Security-First** | PostgreSQL Row Level Security (RLS), input sanitization (DOMPurify), Cloudflare Turnstile bot protection, and security event logging |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Frontend Framework** | Next.js 16 (App Router) |
-| **UI Library** | React 19 |
-| **Language** | TypeScript 5 |
-| **Styling** | Tailwind CSS v4 + shadcn/ui (Radix primitives) |
-| **Animations** | Framer Motion |
-| **Backend Framework** | Express 4 (Node.js ≥ 18) |
-| **Database & Auth** | Supabase (PostgreSQL 15 + Supabase Auth + Supabase Storage) |
-| **Realtime Engine** | Supabase Realtime Channels |
-| **Validation** | Zod |
-| **Security** | Helmet, DOMPurify, PostgreSQL RLS policies |
+<table>
+<tr>
+<td valign="top" width="50%">
+
+**Frontend**
+- Next.js 16 (App Router)
+- React 19
+- TypeScript 5
+- Tailwind CSS v4 + shadcn/ui (Radix primitives)
+- Framer Motion
+
+</td>
+<td valign="top" width="50%">
+
+**Backend & Infrastructure**
+- Express 4 (Node.js ≥ 18)
+- Supabase (PostgreSQL 15, Auth, Storage)
+- Supabase Realtime Channels
+- Zod (validation)
+- Helmet + DOMPurify (security)
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -70,29 +110,30 @@ The project is a **monorepo** with two independently deployable services: a **Ne
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Browser / Client                                           │
-│  Next.js 16 App Router (Vercel)                             │
-│  ┌─────────────────┐  ┌──────────────────────────────────┐  │
-│  │  React Pages    │  │  Next.js API Routes              │  │
-│  │  (frontend/app) │  │  (frontend/app/api/*)            │  │
-│  └────────┬────────┘  └───────────────┬──────────────────┘  │
-│           │ Supabase Client SDK        │ Supabase Admin Client│
-└───────────┼───────────────────────────┼─────────────────────┘
-            │                           │
-            ▼                           ▼
+│  Browser / Client                                            │
+│  Next.js 16 App Router (Vercel)                               │
+│  ┌─────────────────┐   ┌──────────────────────────────────┐   │
+│  │  React Pages     │   │  Next.js API Routes              │   │
+│  │  (frontend/app)  │   │  (frontend/app/api/*)            │   │
+│  └────────┬─────────┘   └───────────────┬──────────────────┘   │
+│           │ Supabase Client SDK          │ Supabase Admin Client│
+└───────────┼──────────────────────────────┼─────────────────────┘
+            │                              │
+            ▼                              ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Supabase (PostgreSQL)                                      │
-│  ├── Database Tables + RLS Policies                         │
-│  ├── Authentication (Email, OAuth)                          │
-│  ├── Storage Buckets (avatars, post-media)                  │
-│  └── Realtime Channels (messages, notifications)            │
+│  Supabase (PostgreSQL)                                        │
+│  ├── Database Tables + RLS Policies                           │
+│  ├── Authentication (Email, OAuth)                             │
+│  ├── Storage Buckets (avatars, post-media)                     │
+│  └── Realtime Channels (messages, notifications)               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**How they talk:**
-- The **Next.js frontend** communicates with Supabase directly via `@supabase/ssr` and `@supabase/supabase-js` (with Row Level Security enforced via `auth.uid()`).
-- Server routes (like `/api/waitlist`) use the service-role admin client for atomic transactional operations.
-- The **Express backend** communicates with Supabase via the Supabase Node.js client.
+**How the pieces communicate:**
+
+- The **Next.js frontend** talks to Supabase directly via `@supabase/ssr` and `@supabase/supabase-js`, with Row Level Security enforced through `auth.uid()`.
+- Server routes (e.g. `/api/waitlist`) use the service-role admin client for atomic, transactional operations.
+- The **Express backend** communicates with Supabase through the Supabase Node.js client for feature workflows that need a dedicated API layer.
 
 ---
 
@@ -100,17 +141,17 @@ The project is a **monorepo** with two independently deployable services: a **Ne
 
 ### Prerequisites
 
-- **Node.js** ≥ 18 ([download](https://nodejs.org/))
+- **Node.js** ≥ 18 → [Download](https://nodejs.org/)
 - **npm**, **yarn**, or **pnpm**
-- A **Supabase project** ([app.supabase.com](https://app.supabase.com/))
+- A **Supabase project** → [app.supabase.com](https://app.supabase.com/)
 
 ### 1. Database Setup
 
-Run the migrations in `supabase/migrations/001_initial_schema.sql` in your Supabase SQL Editor:
+Run the migration script in your Supabase SQL Editor:
 
 ```bash
-# In the Supabase Dashboard:
-# SQL Editor -> New Query -> Paste contents of supabase/migrations/001_initial_schema.sql -> Run
+# Supabase Dashboard → SQL Editor → New Query
+# Paste the contents of supabase/migrations/001_initial_schema.sql → Run
 ```
 
 ### 2. Set Up the Frontend
@@ -121,13 +162,17 @@ npm install
 cp .env.example .env.local
 ```
 
-Open `frontend/.env.local` and fill in your **Supabase** credentials:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+Fill in `frontend/.env.local` with your Supabase credentials:
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-only) |
 
 ```bash
-npm run dev           # starts Next.js at http://localhost:3000
+npm run dev
+# → http://localhost:3000
 ```
 
 ### 3. Set Up the Backend
@@ -138,14 +183,20 @@ npm install
 cp .env.example .env
 ```
 
-Open `backend/.env` and fill in:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `PORT`, `NODE_ENV`, and `FRONTEND_URL`
+Fill in `backend/.env`:
+
+| Variable | Description |
+|---|---|
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_ANON_KEY` | Public anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-only) |
+| `PORT` | Port for the Express server |
+| `NODE_ENV` | `development` or `production` |
+| `FRONTEND_URL` | URL of the running frontend (for CORS) |
 
 ```bash
-npm run dev           # starts Express at http://localhost:5000
+npm run dev
+# → http://localhost:5000
 ```
 
 > **Health check:** `GET http://localhost:5000/health` → `{ "status": "ok" }`
@@ -155,7 +206,7 @@ npm run dev           # starts Express at http://localhost:5000
 ## Folder Structure
 
 ```
-squibl/                   ← Monorepo root
+squibl/                         ← Monorepo root
 ├── frontend/                   ← Next.js 16 client (deployed to Vercel)
 │   ├── app/                    ← App Router pages (23 routes)
 │   ├── components/             ← Reusable UI components + shadcn/ui
@@ -197,25 +248,34 @@ Run these from the **monorepo root**:
 | `npm run build:frontend` | Production build for Next.js |
 | `npm run build:backend` | Compile TypeScript → `backend/dist/` |
 | `npm run lint` | Lint both frontend and backend |
-| `npm run install:all` | Install deps for root + both sub-packages |
+| `npm run install:all` | Install dependencies for root + both sub-packages |
 
 ---
 
 ## Contributing
 
-We follow **Conventional Commits** for all commit messages.
-
-### Commit Format
+Contributions are welcome! Please follow **Conventional Commits** for all commit messages.
 
 ```
 <type>(<scope>): <short description>
 
-Types: feat | fix | docs | chore | refactor | style | test | perf
-Scope: frontend | backend | rules | deps | ci
+Types:  feat | fix | docs | chore | refactor | style | test | perf
+Scope:  frontend | backend | rules | deps | ci
 ```
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/your-feature`)
+3. Commit your changes following the format above
+4. Open a Pull Request describing the change and its motivation
 
 ---
 
 ## License
 
 Distributed under the [MIT License](LICENSE).
+
+<div align="center">
+
+Made with ❤️ by the Squibl team
+
+</div>
