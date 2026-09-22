@@ -1,31 +1,18 @@
 <div align="center">
-
-<img src="https://res.cloudinary.com/aovh9hgj/image/upload/v1790094012/squibl_logo_1.png" alt="Squibl Logo" width="120" />
+<img src="https://res.cloudinary.com/aovh9hgj/image/upload/v1790094012/squibl_logo_1.png" alt="Squibl Logo" width="72" /><br/>
 
 # Squibl
+**Where developers find teammates, build projects, and grow together**
 
-### Where developers find teammates, build projects, and grow together
+[![Live Demo](https://img.shields.io/badge/Live_Demo-squibl.vercel.app-success?style=flat-square&logo=vercel&logoColor=white)](https://squibl.vercel.app)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4-black?style=flat-square&logo=express&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-<p>
-  <a href="https://squibl.online"><img src="https://img.shields.io/badge/Live_Demo-squibl.online-success?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo"/></a>
-</p>
-
-<p>
-  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js"/>
-  <img src="https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"/>
-  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React"/>
-  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase"/>
-  <img src="https://img.shields.io/badge/Express-4-black?style=flat-square&logo=express&logoColor=white" alt="Express"/>
-  <img src="https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"/>
-</p>
-
-<p>
-  <img src="https://img.shields.io/github/stars/Keerthanreddy01/squibl-web?style=flat-square&color=yellow" alt="Stars"/>
-  <img src="https://img.shields.io/github/last-commit/Keerthanreddy01/squibl-web?style=flat-square" alt="Last Commit"/>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT"/></a>
-</p>
-
-[**Live Demo**](https://squibl.vercel.app) · [**Report a Bug**](https://github.com/Keerthanreddy01/squibl-web/issues) · [**Request a Feature**](https://github.com/Keerthanreddy01/squibl-web/issues)
+[Live Demo](https://squibl.vercel.app) • [Report a Bug](https://github.com/Keerthanreddy01/squibl-web/issues) • [Request a Feature](https://github.com/Keerthanreddy01/squibl-web/issues)
 
 </div>
 
